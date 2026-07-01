@@ -1,7 +1,43 @@
 # Workload — Fabric (Layer 2)
 
-Spoke for **Microsoft Fabric** with private connectivity, peered to the hub and
-governed by the platform AVNM policies.
+Spoke for **Microsoft Fabric** with private connectivity, peered to the hub
+(classic peering + UDR) and governed by the platform policies.
+
+## Topology (target)
+
+![Microsoft Fabric — workspace-level Private Link](../../docs/images/05-fabric-private-link.png)
+
+This is the target access model — **workspace-level Private Link** for private,
+per-workspace inbound access to Fabric. Reading it left to right:
+
+- **Sources (left).** Clients reach Fabric from **on-prem** (over **ExpressRoute
+  / VPN**) and from **Azure VNets** (over **peering**). In our LZ these all route
+  through the hub, so the "Customer VNet" is simply the **Fabric spoke**.
+- **Customer VNet (Fabric spoke).** A **Private Endpoint** for the Fabric
+  workspace lives in the spoke's **pe-subnet**. A user in (or routed to) this
+  VNet reaches Fabric through that private IP — never the public internet.
+- **Azure Private Link (Workspace Level).** The private endpoint is scoped to a
+  **specific workspace** (not the whole tenant), so you control inbound access
+  per workspace.
+- **Fabric Tenant.**
+  - **Workspace A** — **public access Disabled**. Reachable **only** through the
+    private endpoint. Holds Lakehouse, Warehouse, Notebook, **OneLake**, and
+    Spark Job Definitions. *Note:* enabling private link + block-public forces
+    workspace **Spark into a managed VNet** (starter pools disabled, slower
+    session start).
+  - **Workspace B** — **public access Enabled**, but gated by **Entra
+    Conditional Access** at the **tenant level** (a portal/API user must satisfy
+    CA policy). Holds Semantic Model, Report, Pipeline, KQL Database.
+  - **Secure Data Access** — workspaces exchange data over Fabric's internal
+    secure path.
+- **Two inbound postures side by side.** Workspace A = **network isolation**
+  (private endpoint, no public); Workspace B = **identity isolation** (public
+  endpoint + Conditional Access). Real tenants often mix both.
+
+How this maps to the LZ: the Private Endpoint sits in the Fabric spoke's
+`pe-subnet`; the Fabric/OneLake **private-DNS zones** live in the hub and are
+linked to the spoke; **on-prem conditional-forwards** to the hub Private DNS
+Resolver so the Fabric FQDNs resolve to the private-endpoint IPs (not public).
 
 ## Build order
 
