@@ -1,0 +1,61 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="HubSpoke" id="hub-1">
+    <mxGraphModel dx="1422" dy="820" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="1080" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Hub &amp; Spoke Landing Zone — classic peering, central Azure Firewall, forced egress" style="text;html=1;fontSize=18;fontStyle=1;align=center;" vertex="1" parent="1"><mxGeometry x="380" y="16" width="960" height="30" as="geometry"/></mxCell>
+
+        <!-- containers first (z-order) -->
+        <mxCell id="hub" value="Connectivity Hub VNet  (x.x.x.x/23)" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=14;fontStyle=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=4;" vertex="1" parent="1"><mxGeometry x="470" y="120" width="780" height="470" as="geometry"/></mxCell>
+        <mxCell id="sn_fw" value="AzureFirewallSubnet" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=11;dashed=1;dashPattern=8 8;strokeWidth=2;fillColor=#c5d9f1;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="500" y="170" width="170" height="150" as="geometry"/></mxCell>
+        <mxCell id="sn_gw" value="GatewaySubnet" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=11;dashed=1;dashPattern=8 8;strokeWidth=2;fillColor=#c5d9f1;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="700" y="170" width="170" height="150" as="geometry"/></mxCell>
+        <mxCell id="sn_dns" value="DNS Resolver Subnets" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=11;dashed=1;dashPattern=8 8;strokeWidth=2;fillColor=#c5d9f1;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="900" y="170" width="170" height="150" as="geometry"/></mxCell>
+        <mxCell id="sn_egr" value="Egress Subnet (SWG NVA)" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=11;dashed=1;dashPattern=8 8;strokeWidth=2;fillColor=#c5d9f1;strokeColor=#6c8ebf;" vertex="1" parent="1"><mxGeometry x="500" y="360" width="220" height="180" as="geometry"/></mxCell>
+
+        <mxCell id="fabvnet" value="Fabric Spoke VNet  (x.x.x.x/16)" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=13;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=4;" vertex="1" parent="1"><mxGeometry x="470" y="720" width="360" height="230" as="geometry"/></mxCell>
+        <mxCell id="foundvnet" value="Foundry Spoke VNet  (x.x.x.x/16)" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=13;fontStyle=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=4;" vertex="1" parent="1"><mxGeometry x="890" y="720" width="360" height="230" as="geometry"/></mxCell>
+
+        <mxCell id="onprem" value="On-Premises&#10;Data Center" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=13;fontStyle=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;" vertex="1" parent="1"><mxGeometry x="60" y="240" width="220" height="220" as="geometry"/></mxCell>
+
+        <!-- icons -->
+        <mxCell id="fw" value="Azure Firewall + Policy" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/networking/Firewalls.svg;" vertex="1" parent="1"><mxGeometry x="560" y="205" width="50" height="50" as="geometry"/></mxCell>
+        <mxCell id="ddos" value="DDoS Protection Plan" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=10;image=img/lib/azure2/networking/DDoS_Protection_Plans.svg;" vertex="1" parent="1"><mxGeometry x="820" y="400" width="46" height="46" as="geometry"/></mxCell>
+        <mxCell id="ergw" value="ExpressRoute GW" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/networking/Virtual_Network_Gateways.svg;" vertex="1" parent="1"><mxGeometry x="760" y="205" width="50" height="50" as="geometry"/></mxCell>
+        <mxCell id="dns" value="Private DNS Resolver" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/networking/DNS_Private_Resolver.svg;" vertex="1" parent="1"><mxGeometry x="960" y="205" width="50" height="50" as="geometry"/></mxCell>
+        <mxCell id="swg" value="SWG / Zscaler NVA&#10;(proxy for all egress)" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/other/API_Proxy.svg;" vertex="1" parent="1"><mxGeometry x="585" y="395" width="52" height="52" as="geometry"/></mxCell>
+
+        <mxCell id="erc" value="ExpressRoute" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/networking/ExpressRoute_Circuits.svg;" vertex="1" parent="1"><mxGeometry x="145" y="300" width="50" height="50" as="geometry"/></mxCell>
+
+        <mxCell id="fabudr" value="Route Table&#10;0/0 → FW" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=10;image=img/lib/azure2/networking/Route_Tables.svg;" vertex="1" parent="1"><mxGeometry x="510" y="800" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="fabwl" value="Microsoft Fabric&#10;workload" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/networking/Private_Link.svg;" vertex="1" parent="1"><mxGeometry x="660" y="800" width="48" height="48" as="geometry"/></mxCell>
+
+        <mxCell id="foundudr" value="Route Table&#10;0/0 → FW" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=10;image=img/lib/azure2/networking/Route_Tables.svg;" vertex="1" parent="1"><mxGeometry x="915" y="800" width="44" height="44" as="geometry"/></mxCell>
+        <mxCell id="apim" value="API Management" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/app_services/API_Management_Services.svg;" vertex="1" parent="1"><mxGeometry x="1010" y="800" width="48" height="48" as="geometry"/></mxCell>
+        <mxCell id="foundry" value="Foundry + AI Search" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/ai_machine_learning/Azure_OpenAI.svg;" vertex="1" parent="1"><mxGeometry x="1150" y="800" width="48" height="48" as="geometry"/></mxCell>
+
+        <mxCell id="opicon" value="On-Prem network" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/networking/Virtual_Networks.svg;" vertex="1" parent="1"><mxGeometry x="145" y="330" width="50" height="50" as="geometry"/></mxCell>
+
+        <mxCell id="net" value="Internet" style="shape=cloud;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=14;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1420" y="360" width="220" height="140" as="geometry"/></mxCell>
+
+        <mxCell id="mon" value="Monitor subscription" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fontSize=12;fontStyle=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;" vertex="1" parent="1"><mxGeometry x="1340" y="720" width="300" height="150" as="geometry"/></mxCell>
+        <mxCell id="law" value="Log Analytics + AMPLS" style="image;html=1;verticalLabelPosition=bottom;labelPosition=center;verticalAlign=top;align=center;fontSize=11;image=img/lib/azure2/analytics/Log_Analytics_Workspaces.svg;" vertex="1" parent="1"><mxGeometry x="1465" y="770" width="50" height="50" as="geometry"/></mxCell>
+
+        <!-- edges -->
+        <mxCell id="ered" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;strokeColor=#5C6BC0;strokeWidth=2;dashed=1;startArrow=classic;endArrow=classic;fontSize=11;" edge="1" parent="1" source="onprem" target="sn_gw"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="ered_l" value="ExpressRoute (BGP)" style="text;html=1;fontSize=11;fontColor=#5C6BC0;" vertex="1" parent="1"><mxGeometry x="300" y="200" width="150" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="p1" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;strokeColor=#00897B;strokeWidth=3;startArrow=classic;endArrow=classic;" edge="1" parent="1" source="fabvnet" target="hub"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="p1l" value="VNet peering + UDR 0/0 → Firewall" style="text;html=1;fontSize=11;fontColor=#00897B;" vertex="1" parent="1"><mxGeometry x="300" y="640" width="230" height="20" as="geometry"/></mxCell>
+        <mxCell id="p2" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;strokeColor=#00897B;strokeWidth=3;startArrow=classic;endArrow=classic;" edge="1" parent="1" source="foundvnet" target="hub"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="eg" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;strokeColor=#0078D4;strokeWidth=3;endArrow=classic;flowAnimation=1;" edge="1" parent="1" source="swg" target="net"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="egl" value="All egress → SWG/Zscaler → Internet" style="text;html=1;fontSize=11;fontColor=#0078D4;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="1300" y="360" width="240" height="20" as="geometry"/></mxCell>
+
+        <mxCell id="m1" style="edgeStyle=orthogonalEdgeStyle;html=1;rounded=0;strokeColor=#F57C00;strokeWidth=2;dashed=1;endArrow=classic;" edge="1" parent="1" source="foundvnet" target="mon"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="m1l" value="diagnostics" style="text;html=1;fontSize=10;fontColor=#F57C00;" vertex="1" parent="1"><mxGeometry x="1250" y="860" width="90" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

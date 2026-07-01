@@ -1,0 +1,29 @@
+# -----------------------------------------------------------------------------
+# denylist.txt — customer/partner-specific forbidden terms (git-ignored).
+#
+# COPY this file to  _private/denylist.txt  and fill in the REAL terms you
+# never want to appear in a public commit. One extended-regex pattern per line.
+# Lines starting with # are ignored.
+#
+# The whole _private/ folder is git-ignored, so the real terms are never
+# published. scripts/check-sensitive.sh reads _private/denylist.txt at commit
+# time and blocks any staged change that contains a match.
+# -----------------------------------------------------------------------------
+
+# Customer name (Latin + native script), e.g.:
+# Contoso[[:space:]]*Corp
+# חברת[[:space:]]*דוגמה
+
+# Partner / author names:
+# Firstname[[:space:]]*Lastname
+
+# Real subscription short-codes used in resource names (the numeric IDs).
+# Replace the fake examples below with your real codes in _private/denylist.txt:
+# \b00001\b
+# \b00002\b
+# \b00003\b
+
+# Org / naming prefix embedded in resource names:
+# azr-[a-z]+-<realprefix>-
+
+# Any other project-specific identifiers:

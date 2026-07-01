@@ -1,0 +1,39 @@
+# gitleaks configuration for the public Landing Zone repo.
+# Extends the default ruleset and adds a project-specific allow/deny layer.
+#
+# The REAL customer/partner denylist lives in the git-ignored file
+# _private/denylist.txt and is enforced by scripts/check-sensitive.sh.
+# We deliberately do NOT hard-code customer identifiers here, because this
+# file is public and must not reveal what we are trying to hide.
+
+title = "azure-lz gitleaks config"
+
+[extend]
+useDefault = true
+
+# Generic high-signal rules on top of the defaults.
+[[rules]]
+id = "azure-subscription-guid"
+description = "Azure subscription / tenant GUID hard-coded outside an example file"
+regex = '''(?i)(subscription_id|tenant_id)\s*=\s*["'][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}["']'''
+tags = ["azure", "identity"]
+
+[[rules]]
+id = "azure-client-secret"
+description = "Possible client secret"
+regex = '''(?i)(client_secret|client-secret|password)\s*[:=]\s*["'][^"']{16,}["']'''
+tags = ["secret"]
+
+[allowlist]
+description = "Allow placeholder tokens and example files"
+paths = [
+    '''.*\.example$''',
+    '''.*\.example\..*$''',
+    '''docs/.*''',
+]
+regexes = [
+    '''0{8}-0{4}-0{4}-0{4}-0{12}''',   # placeholder GUID
+    '''<[A-Z_]+>''',                     # <TOKEN> placeholders
+    '''x\.x\.x\.x''',                    # placeholder CIDR
+    '''0000''',                          # placeholder sub-code
+]

@@ -1,0 +1,34 @@
+# -----------------------------------------------------------------------------
+# enterprise.tfvars.example — private overlay template (git-ignored when copied
+# to *.private.tfvars). Fill with the REAL values for the target tenant.
+#
+#   cp _private/enterprise.tfvars.example _private/enterprise.private.tfvars
+#
+# Apply with:
+#   terraform apply -var-file=../../_private/enterprise.private.tfvars
+# -----------------------------------------------------------------------------
+
+# --- Identity (REAL values — never leave this folder) ---
+subscription_id_connectivity = "00000000-0000-0000-0000-000000000000"
+subscription_id_management    = "00000000-0000-0000-0000-000000000000"
+subscription_id_apim          = "00000000-0000-0000-0000-000000000000"
+tenant_id                     = "00000000-0000-0000-0000-000000000000"
+
+# --- Naming tokens (the scheme is public; these values are not) ---
+org      = "org"    # real org prefix, e.g. the 3-letter code used in resource names
+env      = "prd"
+location = "westeurope"
+
+# Real subscription short-codes that appear inside resource names.
+subcode_connectivity = "0000"
+subcode_apim         = "0000"
+subcode_security     = "0000"
+
+# --- Address plan (REAL CIDRs — never leave this folder) ---
+hub_vnet_cidr        = "10.0.0.0/23"
+apim_vnet_cidr       = "10.0.2.0/24"
+fabric_spoke_cidr    = "10.10.0.0/16"
+foundry_spoke_cidr   = "10.20.0.0/16"
+
+# --- Egress (vendor-agnostic; brand kept private) ---
+egress_nva_private_ip = "10.0.0.4"

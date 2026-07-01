@@ -1,0 +1,28 @@
+# -----------------------------------------------------------------------------
+# lab.tfvars — small SANDBOX values, safe to keep in the public repo.
+# These are placeholder/token values, not a real environment.
+# Real identity/values always come from _private/*.private.tfvars.
+# -----------------------------------------------------------------------------
+
+env      = "sbx"
+org      = "lab"
+location = "westeurope"
+
+# Placeholder subscription short-codes (not real).
+subcode_connectivity = "0001"
+subcode_management   = "0001"
+subcode_monitor      = "0001"
+subcode_security     = "0001"
+
+# Lab address plan (RFC1918, non-overlapping).
+hub_vnet_cidr = "10.0.0.0/23"
+
+subnet_prefixes = {
+  firewall     = "10.0.0.0/26"
+  gateway      = "10.0.0.64/27"
+  dns_inbound  = "10.0.0.96/28"
+  dns_outbound = "10.0.0.112/28"
+  egress_swg   = "10.0.0.128/27"
+}
+
+enable_ddos = false # keep costs down in the lab

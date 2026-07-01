@@ -1,0 +1,40 @@
+<mxfile host="app.diagrams.net">
+  <diagram name="Stages" id="stg-1">
+    <mxGraphModel dx="1422" dy="760" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1720" pageHeight="560" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="title" value="Platform deployment stages (Terraform, GitHub Actions) — run once, in order" style="text;html=1;fontSize=17;fontStyle=1;align=center;" vertex="1" parent="1"><mxGeometry x="360" y="16" width="1000" height="30" as="geometry"/></mxCell>
+
+        <mxCell id="ci" value="GitHub Actions — fmt → validate → plan → apply  (gitleaks + sensitive-terms guard on every push)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="120" y="70" width="1480" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="s00" value="00&#10;Bootstrap&#10;remote state" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="120" y="170" width="200" height="120" as="geometry"/></mxCell>
+        <mxCell id="s10" value="10&#10;ALZ Governance&#10;MGs + min policy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="360" y="170" width="200" height="120" as="geometry"/></mxCell>
+        <mxCell id="s20" value="20&#10;Connectivity Hub&#10;VNet, FW, DNS, DDoS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="600" y="170" width="200" height="120" as="geometry"/></mxCell>
+        <mxCell id="s30" value="30&#10;Egress&#10;SWG forced tunnel" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="840" y="170" width="200" height="120" as="geometry"/></mxCell>
+        <mxCell id="s40" value="40&#10;Monitoring&#10;LAW, AMPLS, alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="1080" y="170" width="200" height="120" as="geometry"/></mxCell>
+        <mxCell id="s50" value="50&#10;Security&#10;Defender + CNAPP" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;verticalAlign=top;spacingTop=8;" vertex="1" parent="1"><mxGeometry x="1320" y="170" width="200" height="120" as="geometry"/></mxCell>
+
+        <mxCell id="i10" value="" style="image;html=1;image=img/lib/azure2/management_governance/Policy.svg;" vertex="1" parent="1"><mxGeometry x="440" y="230" width="40" height="40" as="geometry"/></mxCell>
+        <mxCell id="i20" value="" style="image;html=1;image=img/lib/azure2/networking/Firewalls.svg;" vertex="1" parent="1"><mxGeometry x="680" y="230" width="40" height="40" as="geometry"/></mxCell>
+        <mxCell id="i30" value="" style="image;html=1;image=img/lib/azure2/other/API_Proxy.svg;" vertex="1" parent="1"><mxGeometry x="920" y="230" width="40" height="40" as="geometry"/></mxCell>
+        <mxCell id="i40" value="" style="image;html=1;image=img/lib/azure2/analytics/Log_Analytics_Workspaces.svg;" vertex="1" parent="1"><mxGeometry x="1160" y="230" width="40" height="40" as="geometry"/></mxCell>
+        <mxCell id="i50" value="" style="image;html=1;image=img/lib/azure2/management_governance/Monitor.svg;" vertex="1" parent="1"><mxGeometry x="1400" y="230" width="40" height="40" as="geometry"/></mxCell>
+
+        <mxCell id="a" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="1" source="s00" target="s10"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="b" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="1" source="s10" target="s20"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="c" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="1" source="s20" target="s30"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="d" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="1" source="s30" target="s40"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="e" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#6c8ebf;strokeWidth=2;endArrow=classic;" edge="1" parent="1" source="s40" target="s50"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+        <mxCell id="wl_fab" value="Layer 2 — Fabric spoke" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="600" y="400" width="260" height="70" as="geometry"/></mxCell>
+        <mxCell id="wl_found" value="Layer 3 — Foundry + AI Search + APIM spoke" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;fontStyle=1;" vertex="1" parent="1"><mxGeometry x="920" y="400" width="360" height="70" as="geometry"/></mxCell>
+
+        <mxCell id="f" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=classic;dashed=1;" edge="1" parent="1" source="s50" target="wl_found"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="g" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#82b366;strokeWidth=2;endArrow=classic;dashed=1;" edge="1" parent="1" source="s20" target="wl_fab"><mxGeometry relative="1" as="geometry"/></mxCell>
+        <mxCell id="branchl" value="Workloads consume the platform outputs" style="text;html=1;fontSize=11;fontColor=#82b366;fontStyle=2;" vertex="1" parent="1"><mxGeometry x="600" y="360" width="360" height="20" as="geometry"/></mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

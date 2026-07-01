@@ -1,0 +1,68 @@
+# ==========================================================================
+# SECRECY FIRST — this repo is intended to be PUBLIC.
+# Never commit anything that identifies the customer, the partner, or
+# real environment values. See docs/PUBLISHING.md.
+# ==========================================================================
+
+# --- Private overlay (real values live ONLY here, never committed) ---
+# The whole folder is ignored EXCEPT the *.example templates, so contributors
+# know how to populate it without ever seeing real values.
+/_private/*
+!/_private/*.example
+!/_private/README.md
+*.private.*
+*.local.*
+
+# --- Source design docs (may contain customer/partner identity) ---
+*.docx
+*.doc
+*.pdf
+*אפיון*
+
+# --- Terraform ---
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Real variable values — only *.example variants are committed
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+!*.tfvars.json.example
+
+# --- Environment / secrets ---
+**/env/*.env
+!**/env/*.env.example
+.env
+*.env
+!*.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+azureauth.json
+.azure/
+
+# --- Editor / OS ---
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
+.idea/
+
+# --- Node / Python helper tooling (if added later) ---
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/

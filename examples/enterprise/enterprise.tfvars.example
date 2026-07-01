@@ -1,0 +1,28 @@
+# -----------------------------------------------------------------------------
+# enterprise.tfvars.example — the enterprise-shaped topology, fully TOKENIZED.
+# Safe to publish: contains only placeholders. Real values live in
+# _private/enterprise.private.tfvars (git-ignored).
+# -----------------------------------------------------------------------------
+
+env      = "prd"
+org      = "org"    # <-- real org prefix only in _private
+location = "westeurope"
+
+# Placeholder subscription short-codes (real ones only in _private).
+subcode_connectivity = "0000"
+subcode_management   = "0000"
+subcode_monitor      = "0000"
+subcode_security     = "0000"
+
+# Tokenized address plan (real CIDRs only in _private).
+hub_vnet_cidr = "10.0.0.0/23"
+
+subnet_prefixes = {
+  firewall     = "10.0.0.0/26"
+  gateway      = "10.0.0.64/27"
+  dns_inbound  = "10.0.0.96/28"
+  dns_outbound = "10.0.0.112/28"
+  egress_swg   = "10.0.0.128/27"
+}
+
+enable_ddos = true
