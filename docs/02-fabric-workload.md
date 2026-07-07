@@ -1,7 +1,7 @@
 # 02 — Fabric workload (Layer 2)
 
 A spoke dedicated to **Microsoft Fabric** with private connectivity, peered to
-the hub and governed by the platform's AVNM policies.
+the hub via classic VNet peering and governed by the platform policies.
 
 ## Scope
 
@@ -17,5 +17,5 @@ private-connectivity design will be added as the Fabric layer is built out.
 
 ## Dependencies
 
-- Requires `platform/20-connectivity-hub` (hub VNet + firewall + AVNM) and
+- Requires `platform/20-connectivity-hub` (hub VNet + firewall) and
   `platform/40-monitoring` (Log Analytics workspace).

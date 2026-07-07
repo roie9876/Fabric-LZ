@@ -72,16 +72,15 @@ the hub **Azure Firewall** by a User-Defined Route (`0.0.0.0/0 → Firewall`).
 | Governance engine | CAF ALZ accelerator (`avm-ptn-alz`) | Inherit Microsoft's mgmt-group + policy machinery instead of hand-rolling it |
 | MG hierarchy | Custom `mgmt / workloads / monitor / sandbox` | Mirror the target design faithfully |
 | Policy baseline | Minimal (Defender + a few deny rules) | Keep the public reference approachable; grow later |
-| Connectivity | **Classic hub-spoke peering + UDR** (no AVNM) | Simpler and more teachable for a public repo; see deviation note below |
+| Connectivity | **Classic hub-spoke peering + UDR** (no AVNM) | Each spoke peers to the hub and carries its own forced-tunnel UDR; simpler and more teachable |
 | Log Analytics / Defender | Owned by our `40-monitoring` / `50-security` stages | Matches a dedicated **monitor** subscription; keeps layers separable |
 | Egress | Vendor-agnostic **SWG NVA** abstraction | Works for Zscaler, a 3rd-party firewall, or a lab proxy — one swap point |
 | CI | **GitHub Actions** (public); GitLab CI kept private | Public-friendly; the real pipeline stays out of the public repo |
 
-> **Deviation — AVNM.** The reference target mandates **Azure Virtual Network
-> Manager** for connectivity and security-admin rules. This public reference
-> intentionally uses **classic peering + UDR** for clarity. Swap in AVNM for
-> production once the topology is validated. This is a deliberate simplification,
-> not an omission.
+> **Connectivity model.** This landing zone uses **classic VNet peering + UDR**
+> throughout: every workload spoke peers directly to the hub and applies its own
+> route table forcing `0.0.0.0/0` to the Azure Firewall. Azure Virtual Network
+> Manager (AVNM) is intentionally **not** used.
 
 ---
 

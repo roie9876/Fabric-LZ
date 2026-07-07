@@ -23,7 +23,7 @@ Layer 1 is organized into purpose-scoped resource groups, all tagged
 | Resource group | Purpose |
 |---|---|
 | `azr-sbx-lab-0001-rg-tfstate` | Remote Terraform state backend (storage account) |
-| `azr-sbx-lab-0001-rg-net-hub` | Connectivity hub: VNet, Firewall, DNS resolver, VPN GW, AVNM |
+| `azr-sbx-lab-0001-rg-net-hub` | Connectivity hub: VNet, Firewall, DNS resolver, VPN GW |
 | `azr-sbx-lab-0001-rg-fw-hub` | Azure Firewall public IP + Firewall Policy |
 | `azr-sbx-lab-0001-rg-monitor-network` | Central Log Analytics workspace |
 | `azr-sbx-lab-0001-rg-onprem-sim` | On-prem S2S simulation (connectivity validation — see below) |
@@ -101,21 +101,13 @@ without an ER circuit.
 
 ---
 
-## 6. Azure Virtual Network Manager (AVNM)
+## 6. Connectivity model — classic peering + UDR
 
-AVNM `azr-sbx-lab-0001-avnm-hub` is deployed with **Connectivity** and
-**SecurityAdmin** features enabled, scoped to the sandbox subscription.
-
-![Azure Virtual Network Manager](images/07-network-manager.png)
-
-- **Enabled features:** Connectivity, SecurityAdmin
-- **Scope:** 1 subscription (in-tenant)
-
-> **As-built note.** The public `platform/README.md` describes the reference as
-> "classic peering + UDR (no AVNM)" for teachability, while
-> `docs/01-landing-zone.md` lists AVNM. This deployment **does** include AVNM
-> (Connectivity + SecurityAdmin). Reconcile the two READMEs to match the intended
-> production posture.
+This landing zone uses **classic VNet peering + UDR**. Each workload spoke peers
+directly to the hub VNet and carries its own route table forcing `0.0.0.0/0` to
+the Azure Firewall (`10.0.0.4`). **Azure Virtual Network Manager (AVNM) is not
+used** — an earlier AVNM scaffold was removed so code and docs agree on a single
+connectivity model.
 
 ---
 
@@ -133,13 +125,64 @@ group; platform and workload diagnostics ship here.
 
 ---
 
+## 8. Network connectivity, routing, DNS & private endpoints
+
+### 8.1 Hybrid connectivity — S2S VPN connection
+
+The hub gateway terminates a site-to-site connection (`hub-to-onprem`) to the
+on-prem simulation, running BGP over the IPsec tunnel.
+
+![VPN connection hub-to-onprem](images/09-vpn-connection.png)
+
+- **Status:** Connected
+- **Type:** VNet-to-VNet (S2S) between `hub-vpngw` and `onprem-vpngw`
+- **Data in / out:** ~90 KiB each way (live tunnel traffic)
+
+### 8.2 Spoke connectivity — classic peering + UDR
+
+Workload spokes connect with **classic VNet peering** to the hub plus a
+per-spoke route table (`0.0.0.0/0` → firewall `10.0.0.4`). No AVNM network
+groups or connectivity configurations are used.
+
+### 8.3 User-defined routes (UDRs) & VNet peerings
+
+> **Applied per workload spoke.** Forced-tunnel UDRs (`0.0.0.0/0 → Firewall`)
+> and hub↔spoke **classic VNet peerings** are created when each workload spoke
+> (Fabric / Foundry) is deployed. There are no route tables or peerings in the
+> hub scope until a spoke lands. This section will be filled with portal
+> screenshots once those stages run.
+
+### 8.4 DNS — Private DNS zone
+
+Hybrid private-name resolution is validated with a `privatelink.blob.core.windows.net`
+zone linked to the hub VNet (works alongside the Private DNS Resolver from §4).
+
+![Private DNS zone](images/10-private-dns-zone.png)
+
+- **Zone:** `privatelink.blob.core.windows.net`
+- **Record sets:** 2
+- **Virtual network links:** 1 (`hub-link` → hub VNet)
+
+### 8.5 Private endpoint
+
+A private endpoint in the hub `pe-subnet` validates the private-link data path
+(the target of the on-prem → hub connectivity test).
+
+![Private endpoint](images/11-private-endpoint.png)
+
+- **Name:** `petest-pe` in `pe-subnet` (`10.0.1.0/28`)
+- **Target sub-resource:** blob (storage account)
+- **Connection status:** Approved (Auto-Approved), Provisioning **Succeeded**
+
+---
+
 ## Verified deployment inventory
 
 | Stage | Resource(s) deployed | Status |
 |---|---|---|
 | 00-bootstrap | `azrlab0001tfstate` (remote state) | ✅ |
 | 10-management-groups | MG hierarchy | ✅ (control plane) |
-| 20-connectivity-hub | Hub VNet, Firewall + Policy, DNS Resolver, VPN GW, AVNM | ✅ |
+| 20-connectivity-hub | Hub VNet, Firewall + Policy, DNS Resolver, VPN GW | ✅ |
 | 40-monitoring | `law-central` Log Analytics | ✅ |
 | 30-egress / 50-security | Egress NVA / Defender plans | ⏳ pending |
 

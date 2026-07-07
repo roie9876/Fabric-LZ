@@ -28,9 +28,9 @@ independent layers** so each can be developed and tested on its own.
 ## Design principles
 
 - **Everything as code** — Terraform only; no manual production changes.
-- **Hub & Spoke** — one connectivity hub, isolated workload spokes. The public
-  reference uses **classic peering + UDR** (Azure Virtual Network Manager is an
-  optional production upgrade — see [platform/README.md](platform/README.md)).
+- **Hub & Spoke** — one connectivity hub, isolated workload spokes, using
+  **classic VNet peering + UDR** (no Azure Virtual Network Manager). See
+  [platform/README.md](platform/README.md).
 - **All east-west and on-prem traffic flows through Azure Firewall.**
 - **Internet egress is forced through a 3rd-party Secure Web Gateway (SWG)** —
   the module is vendor-agnostic; the brand is configured privately.

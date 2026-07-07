@@ -15,8 +15,7 @@ environment-specific values are replaced with tokens (`<ORG>`, `0000`,
 
 1. All deployment via **Terraform only**; no manual creation in production.
 2. Code stored in Git, executed through CI/CD with approvals and security gates.
-3. Network topology managed by **Azure Virtual Network Manager (AVNM)** in a
-   Hub & Spoke configuration.
+3. **Hub & Spoke** network topology using classic VNet peering + UDR (no AVNM).
 4. All traffic **Spoke↔Spoke** and **Spoke↔On-Prem** traverses **Azure Firewall**.
 5. Internet egress **only** through a 3rd-party **Secure Web Gateway (SWG)**.
 6. Public IP protection in the hub via **Azure DDoS Protection**.

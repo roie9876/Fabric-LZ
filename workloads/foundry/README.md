@@ -11,8 +11,7 @@ Requires Layer 1: `platform/20-connectivity-hub`, `platform/30-egress`,
 
 ## Reuse strategy
 
-- Consume hub outputs: `hub_vnet_id`, `firewall_private_ip`, private DNS zones,
-  `avnm_spokes_network_group_id`.
+- Consume hub outputs: `hub_vnet_id`, `firewall_private_ip`, private DNS zones.
 - Adapt the upstream Template-15-style BYO-VNet Foundry deployment to inject the
   agent subnet + private endpoints into this spoke.
 - Publish agent/tool APIs through the shared APIM.

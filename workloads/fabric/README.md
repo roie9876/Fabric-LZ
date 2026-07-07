@@ -45,7 +45,7 @@ Requires Layer 1: `platform/20-connectivity-hub` and `platform/40-monitoring`.
 
 ## Planned contents
 
-- Fabric spoke VNet (via `modules/spoke-vnet`) joined to the AVNM `spokes` group.
+- Fabric spoke VNet (via `modules/spoke-vnet`) peered to the hub (classic peering).
 - Private endpoints / private links for Fabric-facing services.
 - UDR forcing `0.0.0.0/0` → hub firewall (via `modules/udr`).
 - Diagnostics to the central Log Analytics workspace.

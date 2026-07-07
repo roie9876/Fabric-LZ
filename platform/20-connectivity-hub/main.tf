@@ -6,10 +6,12 @@
 #   * Azure Firewall + Firewall Policy (central inspection point)
 #   * DDoS Protection plan (optional)
 #   * Private DNS Resolver (inbound + outbound)
-#   * Azure Virtual Network Manager (AVNM) for Hub & Spoke connectivity
 #
-# Starter skeleton — extend with ExpressRoute Gateway, firewall rule
-# collections, and AVNM connectivity/security configurations as needed.
+# Connectivity model: CLASSIC hub-and-spoke. Each workload spoke creates its own
+# VNet peering to this hub and its own UDR (0.0.0.0/0 -> firewall). No AVNM.
+#
+# Starter skeleton — extend with ExpressRoute Gateway and firewall rule
+# collections as needed.
 ##
 
 # ---------- Naming ----------
@@ -193,24 +195,7 @@ resource "azurerm_private_dns_resolver_outbound_endpoint" "hub" {
   subnet_id               = azurerm_subnet.dns_outbound.id
 }
 
-# ---------- Azure Virtual Network Manager (Hub & Spoke) ----------
-data "azurerm_subscription" "current" {}
-
-resource "azurerm_network_manager" "hub" {
-  name                = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-avnm-hub"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.net.name
-  scope_accesses      = ["Connectivity", "SecurityAdmin"]
-
-  scope {
-    subscription_ids = [data.azurerm_subscription.current.id]
-  }
-
-  tags = local.tags
-}
-
-resource "azurerm_network_manager_network_group" "spokes" {
-  name               = "spokes"
-  network_manager_id = azurerm_network_manager.hub.id
-  description        = "All workload spoke VNets (Fabric, Foundry, ...)."
-}
+# ---------- Connectivity model ----------
+# This reference uses CLASSIC hub-and-spoke: each workload spoke creates its own
+# VNet peering to this hub and its own UDR (0.0.0.0/0 -> firewall). There is no
+# Azure Virtual Network Manager (AVNM) — see platform/README.md for the rationale.
