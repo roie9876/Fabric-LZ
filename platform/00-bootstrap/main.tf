@@ -40,6 +40,10 @@ resource "azurerm_storage_account" "state" {
   allow_nested_items_to_be_public = false
   shared_access_key_enabled       = false
 
+  # Private-only: reachable solely via the hub private endpoint over the S2S
+  # tunnel. Terraform runs from the on-prem runner VM (never the laptop).
+  public_network_access_enabled = false
+
   blob_properties {
     versioning_enabled = true
   }
