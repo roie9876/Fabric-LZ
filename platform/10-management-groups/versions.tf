@@ -6,12 +6,20 @@ terraform {
       version = "~> 4.0"
     }
   }
-  backend "azurerm" {}
+  backend "azurerm" {
+    key = "10-management-groups.tfstate"
+  }
 }
 
 provider "azurerm" {
   features {}
-  tenant_id = var.tenant_id
+  subscription_id = var.subscription_id_management
+  tenant_id       = var.tenant_id
+}
+
+variable "subscription_id_management" {
+  description = "Management subscription ID (satisfies azurerm v4 provider auth; MG ops are tenant-scoped)."
+  type        = string
 }
 
 variable "tenant_id" {

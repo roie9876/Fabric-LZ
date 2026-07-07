@@ -148,7 +148,10 @@ resource "azurerm_public_ip" "fw" {
 
 resource "azurerm_firewall" "hub" {
   name                = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-fw-hub"
-  resource_group_name = azurerm_resource_group.fw.name
+  # Azure Firewall must reside in the SAME resource group as the VNet/subnet it
+  # references (AzureFirewallSubnet lives in the net RG), so deploy it there.
+  # The public IP and firewall policy may remain in the fw RG.
+  resource_group_name = azurerm_resource_group.net.name
   location            = var.location
   sku_name            = "AZFW_VNet"
   sku_tier            = "Standard"
