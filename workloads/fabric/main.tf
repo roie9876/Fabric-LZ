@@ -5,12 +5,13 @@
 # the Layer 1 hub:
 #   * Spoke VNet + pe-subnet, peered to the hub (classic peering)
 #   * UDR 0.0.0.0/0 -> hub Azure Firewall (forced tunnel)
-#   * Fabric/OneLake private-DNS zones (in the hub) linked to hub + spoke
+#   * Workspace-level Private Link DNS zone linked to hub + spoke
 #   * Microsoft Fabric capacity (F-SKU)
 #   * Diagnostics -> central Log Analytics
 #
-# Workspace creation, workspace-level Private Link and its private endpoint are
-# tenant-scoped / portal steps — see DEPLOYMENT.md.
+# Workspace creation is a Fabric control-plane step. The workspace-level Private
+# Link service and private endpoint are deployed afterward from
+# workloads/fabric-private-link, once the private workspace ID is known.
 ##
 
 locals {
@@ -20,23 +21,17 @@ locals {
     managed = "terraform"
   }
 
-  hub_rg       = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-rg-net-hub"
-  hub_vnet     = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-vnet-hub-core"
-  hub_fw       = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-fw-hub"
-  monitor_rg   = "azr-${var.env}-${var.org}-${var.subcode_monitor}-rg-monitor-network"
-  monitor_law  = "azr-${var.env}-${var.org}-${var.subcode_monitor}-law-central"
-  spoke_rg     = "azr-${var.env}-${var.org}-${var.subcode_fabric}-rg-fabric-spoke"
-  spoke_vnet   = "azr-${var.env}-${var.org}-${var.subcode_fabric}-vnet-fabric-spoke"
-  spoke_rt     = "azr-${var.env}-${var.org}-${var.subcode_fabric}-rt-fabric-spoke"
-  capacity     = lower("azr${var.env}${var.org}${var.subcode_fabric}fabcap")
+  hub_rg      = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-rg-net-hub"
+  hub_vnet    = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-vnet-hub-core"
+  hub_fw      = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-fw-hub"
+  monitor_rg  = "azr-${var.env}-${var.org}-${var.subcode_monitor}-rg-monitor-network"
+  monitor_law = "azr-${var.env}-${var.org}-${var.subcode_monitor}-law-central"
+  spoke_rg    = "azr-${var.env}-${var.org}-${var.subcode_fabric}-rg-fabric-spoke"
+  spoke_vnet  = "azr-${var.env}-${var.org}-${var.subcode_fabric}-vnet-fabric-spoke"
+  spoke_rt    = "azr-${var.env}-${var.org}-${var.subcode_fabric}-rt-fabric-spoke"
+  capacity    = lower("azr${var.env}${var.org}${var.subcode_fabric}fabcap")
 
-  # Fabric / Power BI / OneLake private-link DNS zones.
-  fabric_dns_zones = [
-    "privatelink.analysis.windows.net",
-    "privatelink.pbidedicated.windows.net",
-    "privatelink.prod.powerquery.microsoft.com",
-    "privatelink.dfs.fabric.microsoft.com",
-  ]
+  workspace_private_dns_zone = "privatelink.fabric.microsoft.com"
 }
 
 # ---------- Look up Layer 1 resources (deterministic names) ----------
@@ -121,28 +116,25 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   allow_gateway_transit        = true
 }
 
-# ---------- Fabric private-DNS zones (in hub RG, linked to hub + spoke) ----------
-resource "azurerm_private_dns_zone" "fabric" {
-  for_each            = toset(local.fabric_dns_zones)
-  name                = each.value
+# ---------- Workspace-level Private Link DNS (linked to hub + spoke) ----------
+resource "azurerm_private_dns_zone" "workspace" {
+  name                = local.workspace_private_dns_zone
   resource_group_name = local.hub_rg
   tags                = local.tags
 }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "spoke" {
-  for_each              = azurerm_private_dns_zone.fabric
+resource "azurerm_private_dns_zone_virtual_network_link" "workspace_spoke" {
   name                  = "link-fabric-spoke"
   resource_group_name   = local.hub_rg
-  private_dns_zone_name = each.value.name
+  private_dns_zone_name = azurerm_private_dns_zone.workspace.name
   virtual_network_id    = azurerm_virtual_network.spoke.id
   registration_enabled  = false
 }
 
-resource "azurerm_private_dns_zone_virtual_network_link" "hub" {
-  for_each              = azurerm_private_dns_zone.fabric
+resource "azurerm_private_dns_zone_virtual_network_link" "workspace_hub" {
   name                  = "link-hub"
   resource_group_name   = local.hub_rg
-  private_dns_zone_name = each.value.name
+  private_dns_zone_name = azurerm_private_dns_zone.workspace.name
   virtual_network_id    = data.azurerm_virtual_network.hub.id
   registration_enabled  = false
 }

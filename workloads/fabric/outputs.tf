@@ -17,7 +17,12 @@ output "fabric_capacity_name" {
   value = azurerm_fabric_capacity.this.name
 }
 
-output "fabric_dns_zone_names" {
-  description = "Fabric/OneLake private-DNS zones created in the hub."
-  value       = [for z in azurerm_private_dns_zone.fabric : z.name]
+output "workspace_private_dns_zone_id" {
+  description = "Private DNS zone used by Fabric workspace-level Private Link."
+  value       = azurerm_private_dns_zone.workspace.id
+}
+
+output "workspace_private_dns_zone_name" {
+  description = "Private DNS zone used by Fabric workspace-level Private Link."
+  value       = azurerm_private_dns_zone.workspace.name
 }
