@@ -7,6 +7,10 @@ independent layers** so each can be developed and tested on its own.
 > customer, partner, or environment identity. See
 > [docs/PUBLISHING.md](docs/PUBLISHING.md) for how that separation is enforced.
 
+> **Deploying the lab? Start with the copy/paste operator timeline:**
+> [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md). It identifies every Terraform,
+> portal, API, validation, screenshot, and stop-gate action in execution order.
+
 ## Table of Contents
 
 - [Design principles](#design-principles)
@@ -27,7 +31,9 @@ independent layers** so each can be developed and tested on its own.
 
 ## Design principles
 
-- **Everything as code** — Terraform only; no manual production changes.
+- **Terraform-first operations** — Azure infrastructure is managed as code.
+  Fabric and Entra actions that do not have a suitable Terraform lifecycle are
+  explicit portal/API stop gates with required screenshot or response evidence.
 - **Hub & Spoke** — one connectivity hub, isolated workload spokes, using
   **classic VNet peering + UDR** (no Azure Virtual Network Manager). See
   [platform/README.md](platform/README.md).
@@ -123,6 +129,10 @@ public; the real `org` and `subcode` values live only in `_private/`. See
 [docs/naming-convention.md](docs/naming-convention.md).
 
 ## Getting started (lab)
+
+For the complete timeline, current checkpoint, exact execution surface, expected
+plan results, portal actions, and evidence names, follow
+[DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md).
 
 ```bash
 # 1. Install guardrails (blocks identity leaks before they are committed)
