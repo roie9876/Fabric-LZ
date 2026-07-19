@@ -61,7 +61,7 @@ variable "onprem_source_cidr" {
 }
 
 variable "force_onprem_return_via_firewall" {
-  description = "Add a pe-subnet route (on-prem CIDR -> hub firewall) so PE->on-prem return traffic hairpins through the firewall instead of going direct to the VPN gateway."
+  description = "Add a pe-subnet route (on-prem CIDR -> hub firewall) so PE->on-prem return traffic transits the firewall (on-prem is peered to the hub, not the spoke; peering is non-transitive)."
   type        = bool
   default     = true
 }

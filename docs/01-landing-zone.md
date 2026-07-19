@@ -9,7 +9,7 @@ once, in stage order.
 |---|---|---|
 | 00 | `platform/00-bootstrap` | Remote state backend, provider config, CI (OIDC) identity |
 | 10 | `platform/10-management-groups` | `mgmt` / `workloads` / `monitor` / `sandbox` hierarchy + subscription placement |
-| 20 | `platform/20-connectivity-hub` | Hub VNet, Azure Firewall + Policy, ExpressRoute GW, DDoS plan, Private DNS Resolver |
+| 20 | `platform/20-connectivity-hub` | Hub VNet, Azure Firewall + Policy, DDoS plan, Private DNS Resolver |
 | 30 | `platform/30-egress` | Secure egress: UDR `0.0.0.0/0` → SWG NVA (vendor-agnostic) |
 | 40 | `platform/40-monitoring` | Log Analytics, AMPLS, Action Groups, DCR, alerts, workbooks |
 | 50 | `platform/50-security` | Defender for Cloud plans + CNAPP onboarding hooks |

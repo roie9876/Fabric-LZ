@@ -43,8 +43,9 @@ the hub **Azure Firewall** by a User-Defined Route (`0.0.0.0/0 → Firewall`).
 
 **Hub contents**
 - **Azure Firewall + Policy** — the single inspection point for east-west and
-  hybrid traffic.
-- **ExpressRoute Gateway** — hybrid connectivity to on-premises (BGP).
+  hybrid traffic, and the transit / default gateway for on-prem traffic.
+- **On-prem VNet peering** — hybrid connectivity to on-premises; on-prem is
+  peered directly to the hub and reaches spokes/internet via the firewall.
 - **DDoS Protection Plan** — protects hub public IPs.
 - **Private DNS Resolver** (inbound + outbound) — hybrid name resolution.
 - **Egress subnet** — hosts the Secure Web Gateway NVA (see §5).
@@ -59,8 +60,8 @@ the hub **Azure Firewall** by a User-Defined Route (`0.0.0.0/0 → Firewall`).
 | Flow | Path | Control |
 |---|---|---|
 | Spoke → Spoke | Spoke A → Firewall → Spoke B | forced UDR + FW policy |
-| Spoke → On-Prem | Spoke → Firewall → ER Gateway → On-Prem | FW policy + BGP |
-| On-Prem → Spoke | On-Prem → ER Gateway → Firewall → Spoke | FW policy |
+| Spoke → On-Prem | Spoke → Firewall → On-Prem (peered to hub) | FW policy |
+| On-Prem → Spoke | On-Prem → Firewall → Spoke | FW policy |
 | Spoke → Internet | Spoke → Firewall → **SWG/Zscaler** → Internet | UDR + NSG deny direct egress |
 
 ---
@@ -99,7 +100,7 @@ order. Workloads consume the platform outputs afterwards.
 |---|---|---|
 | 00 | `00-bootstrap` | Remote state backend, providers, CI (OIDC) identity |
 | 10 | `10-alz-governance` | ALZ engine: MG tree + minimal policy + Defender |
-| 20 | `20-connectivity-hub` | Hub VNet, Firewall + Policy, DDoS, DNS Resolver, ER GW |
+| 20 | `20-connectivity-hub` | Hub VNet, Firewall + Policy, DDoS, DNS Resolver |
 | 30 | `30-egress` | Forced-tunnel egress to the SWG NVA (vendor-agnostic) |
 | 40 | `40-monitoring` | Log Analytics, AMPLS, DCR, alerts, workbooks |
 | 50 | `50-security` | Defender for Cloud plans + CNAPP onboarding |
@@ -168,7 +169,7 @@ code changes are needed to switch between the lab proxy and real Zscaler.
 **Level 3 — Simulate the tunnel (highest fidelity).**
 If you specifically want to test the *tunnel* behavior Zscaler uses (IPsec/GRE
 forwarding to ZIA), run **strongSwan** on the proxy VM and terminate an IPsec
-tunnel from the Azure VPN Gateway or firewall. This is rarely needed for
+tunnel from the firewall. This is rarely needed for
 landing-zone routing tests and adds real complexity — use it only if the tunnel
 itself is what you're validating.
 

@@ -80,14 +80,6 @@ resource "azurerm_subnet" "firewall" {
   default_outbound_access_enabled = false # match secure live state (no implicit outbound)
 }
 
-resource "azurerm_subnet" "gateway" {
-  name                            = "GatewaySubnet" # fixed name required by Azure
-  resource_group_name             = azurerm_resource_group.net.name
-  virtual_network_name            = azurerm_virtual_network.hub.name
-  address_prefixes                = [var.subnet_prefixes.gateway]
-  default_outbound_access_enabled = false
-}
-
 resource "azurerm_subnet" "dns_inbound" {
   name                            = "DNSInboundResolverSubnet"
   resource_group_name             = azurerm_resource_group.net.name

@@ -42,9 +42,10 @@ Each Terraform root owns a separate state key:
 This is the target access model — **workspace-level Private Link** for private,
 per-workspace inbound access to Fabric. Reading it left to right:
 
-- **Sources (left).** Clients reach Fabric from **on-prem** (over **ExpressRoute
-  / VPN**) and from **Azure VNets** (over **peering**). In our LZ these all route
-  through the hub, so the "Customer VNet" is simply the **Fabric spoke**.
+- **Sources (left).** Clients reach Fabric from **on-prem** and from **Azure
+  VNets** — both over **VNet peering** to the hub, with the hub firewall as the
+  transit. In our LZ these all route through the hub, so the "Customer VNet" is
+  simply the **Fabric spoke**.
 - **Customer VNet (Fabric spoke).** A **Private Endpoint** for the Fabric
   workspace lives in the spoke's **pe-subnet**. A user in (or routed to) this
   VNet reaches Fabric through that private IP — never the public internet.
@@ -213,7 +214,7 @@ queries, and post-apply convergence plan.
 - Forced-tunnel route: `0.0.0.0/0` -> virtual appliance `10.0.0.4`,
   provisioning `Succeeded`.
 - Peerings `fabric-spoke-to-hub` and `hub-to-fabric-spoke`: `Connected` and
-  `FullyInSync`; remote gateway and gateway transit are enabled as designed.
+  `FullyInSync`; forwarded traffic allowed so the firewall transits spoke ↔ on-prem.
 - Private DNS zone `privatelink.fabric.microsoft.com`: hub and Fabric-spoke
   links are `Completed` / `Succeeded`.
 - Diagnostic setting `diag-to-law`: `AllMetrics` enabled and targeting
@@ -386,9 +387,8 @@ output-only repair applied with **0 added, 0 changed, 0 destroyed** and now
 returns all five private IPs.
 
 From the on-prem test VM, all five FQDNs resolved through the hub resolver
-`10.0.0.100` to their expected private IPs and TCP 443 was open on each. The
-on-prem VPN gateway learned `10.2.0.0/24` through eBGP AS 65515 with next hop
-`10.0.0.94`, proving the gateway-transit route to the Fabric spoke.
+`10.0.0.100` to their expected private IPs and TCP 443 was open on each. On-prem
+reaches the Fabric spoke through the hub firewall (VNet peering + firewall transit).
 
 An authenticated test also ran from the on-prem Terraform runner by acquiring a
 Fabric token from Azure Instance Metadata and calling Workspace A through its
@@ -399,7 +399,7 @@ correct workspace ID and display name. No token was printed or stored.
 
 This lab phase represents customer-owned on-prem infrastructure. It extends the
 existing `onprem-vnet` workload subnet but does not own or modify the VNet, NAT,
-VPN gateways, BGP connections, or existing test/runner VMs.
+hub peering, or existing test/runner VMs.
 
 #### Lab versus customer sizing
 
@@ -615,7 +615,7 @@ When testing is finished for the day:
 
 Before the next session, resume the F2 capacity and start only the VMs needed for
 that phase. Pausing stops Fabric compute billing; deallocation stops VM compute
-billing. Disks, OneLake storage, Firewall, NAT public IPs and VPN gateways
+billing. Disks, OneLake storage, Firewall, and NAT public IPs
 continue to incur charges.
 
 #### Shutdown checkpoint (2026-07-13)
@@ -642,9 +642,8 @@ The complete July 13 shutdown set was restored:
 - Fabric capacity `azrsbxlab0001fabcap`: `Active`, provisioning `Succeeded`.
 - All six subscription VMs: `VM running`, provisioning `Succeeded`.
 - Container App revision `app-7bsfsfvbjjufs--3i7k5i8`: active with one replica.
-- Hub-to-on-prem VPN: `Connected`; BGP peer `172.16.255.30`: `Connected`.
-- On-prem gateway learns `10.2.0.0/24` through eBGP AS 65515 with next hop
-  `10.0.0.94`.
+- On-prem ↔ hub: VNet peering `Connected`; on-prem reaches the Fabric spoke via
+  the hub firewall transit.
 - SQL service and `SQL_READY` marker are present; the protected managed-command
   validation remains `Succeeded`, exit code `0`, with three authenticated rows.
 - OPDG reaches SQL on TCP 1433 and resolves the five Workspace A FQDNs to
@@ -683,7 +682,7 @@ Start `onprem-vm` only when an independent network test host is needed. The two
 Foundry VMs and the unrelated Container App remain stopped until their own
 workloads resume.
 
-Azure Firewall, three VPN gateways, NAT Gateway, managed disks, public IPs,
+Azure Firewall, NAT Gateway, managed disks, public IPs,
 Private Endpoints, DNS, state storage, and OneLake storage have no temporary
 stop operation and continue to incur their normal fixed or storage charges.
 
@@ -692,22 +691,21 @@ stop operation and continue to incur their normal fixed or storage charges.
 **Access to Fabric — workspace-level Private Link (inbound).**
 Fabric workspace exposed via an **Azure Private Endpoint** in the Fabric spoke's
 `pe-subnet`; workspace **public access Disabled**. Reached privately from:
-- **on-prem** (a remote VNet joined to the hub by **S2S VPN** in the lab, **ExpressRoute** in the customer env), and
+- **on-prem** (a remote VNet joined to the hub by **VNet peering**; the hub firewall is the transit), and
 - **Azure VNets** via hub-spoke peering.
 
 **On-prem SQL → OneLake ingestion — Pattern 2: On-premises Data Gateway (OPDG).**
 - A Windows VM running the **OPDG** sits **next to the SQL Server VM in the on-prem VNet**.
 - SQL read is **local** (gateway + SQL in the same on-prem VNet).
 - The gateway writes to **Fabric / OneLake via the private endpoints**, so that
-  data leg travels: on-prem → **S2S VPN / ER** → hub → spoke PE. **This leg
-  crosses the ER**, provided DNS resolves Fabric/OneLake FQDNs to the
-  private-endpoint IPs.
+  data leg travels: on-prem → **peering → hub firewall** → spoke PE, provided DNS
+  resolves Fabric/OneLake FQDNs to the private-endpoint IPs.
 
 ### Accepted caveat
 The OPDG keeps a **mandatory control/registration channel to Azure Relay
 (`*.servicebus.windows.net`)** that historically uses **public** endpoints. So
-the *data* path crosses the ER, but the gateway's *control* channel still
-**egresses** (through the hub firewall / SWG). Confirm current OPDG + private-link
+the *data* path stays private (peering → firewall → PE), but the gateway's
+*control* channel still **egresses** (through the hub firewall / SWG). Confirm current OPDG + private-link
 support in-tenant; the control channel may not be fully forceable onto private link.
 
 ### Must be correct for this to work
@@ -722,7 +720,7 @@ support in-tenant; the control channel may not be fully forceable onto private l
 
 ### Lab implementation scope
 - `workloads/onprem-lab/` — private **SQL Server VM** + **OPDG VM** added to the
-  existing on-prem VNet and dual-gateway S2S/BGP simulation. **Lab only.**
+  existing on-prem VNet (peered to the hub). **Lab only.**
 - `workloads/fabric/` — Fabric spoke + workspace Private Endpoint + Lakehouse +
   OPDG connection + Copy pipeline into OneLake.
 - Note: gateway registration + several Fabric artifacts are tenant-scoped /

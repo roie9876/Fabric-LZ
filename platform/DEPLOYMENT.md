@@ -23,10 +23,10 @@ Layer 1 is organized into purpose-scoped resource groups, all tagged
 | Resource group | Purpose |
 |---|---|
 | `azr-sbx-lab-0001-rg-tfstate` | Remote Terraform state backend (storage account) |
-| `azr-sbx-lab-0001-rg-net-hub` | Connectivity hub: VNet, Firewall, DNS resolver, VPN GW |
+| `azr-sbx-lab-0001-rg-net-hub` | Connectivity hub: VNet, Firewall, DNS resolver |
 | `azr-sbx-lab-0001-rg-fw-hub` | Azure Firewall public IP + Firewall Policy |
 | `azr-sbx-lab-0001-rg-monitor-network` | Central Log Analytics workspace |
-| `azr-sbx-lab-0001-rg-onprem-sim` | On-prem S2S simulation (connectivity validation — see below) |
+| `azr-sbx-lab-0001-rg-onprem-sim` | On-prem simulation, peered to the hub (connectivity validation — see below) |
 
 ---
 
@@ -40,7 +40,6 @@ The connectivity hub VNet `azr-sbx-lab-0001-vnet-hub-core` uses address space
 | Subnet | CIDR | Role |
 |---|---|---|
 | `AzureFirewallSubnet` | `10.0.0.0/26` | Azure Firewall data plane |
-| `GatewaySubnet` | `10.0.0.64/27` | VPN / ExpressRoute gateway |
 | `DNSInboundResolverSubnet` | `10.0.0.96/28` | Private DNS Resolver inbound (delegated) |
 | `DNSOutboundResolverSubnet` | `10.0.0.112/28` | Private DNS Resolver outbound (delegated) |
 | `EgressSwgSubnet` | `10.0.0.128/27` | Secure Web Gateway NVA (forced egress) |
@@ -84,20 +83,17 @@ hub VNet.
 
 ---
 
-## 5. Hybrid connectivity — VPN Gateway
+## 5. Hybrid connectivity — VNet peering + firewall transit
 
-The lab realizes hybrid connectivity with a **zone-redundant VPN gateway**
-(`hub-vpngw`). The reference target uses ExpressRoute; the lab substitutes a VPN
-gateway + an on-prem simulation to validate the same routing and BGP behavior
-without an ER circuit.
+On-premises connects to the hub over **VNet peering**, and the hub **Azure
+Firewall is the transit / default gateway**. There is no VPN or ExpressRoute
+gateway and no `GatewaySubnet`.
 
-![VPN Gateway](images/06-vpn-gateway.png)
-
-- **SKU:** `VpnGw1AZ` (zone-redundant)
-- **Gateway type:** VPN, **route-based**
-- **Public IP:** `hub-vpngw-pip`
-- Live tunnel ingress/egress metrics confirm an active S2S connection to the
-  on-prem simulation (`azr-sbx-lab-0001-rg-onprem-sim`), with BGP established.
+- On-prem → hub: direct via VNet peering.
+- On-prem → Fabric spoke and on-prem → internet: on-prem UDR sends the spoke
+  prefix and `0.0.0.0/0` to the Azure Firewall (`10.0.0.4`), which transits/SNATs.
+- The on-prem simulation VNet (`azr-sbx-lab-0001-rg-onprem-sim`) is peered to the
+  hub in both directions with forwarded traffic allowed.
 
 ---
 
@@ -127,16 +123,15 @@ group; platform and workload diagnostics ship here.
 
 ## 8. Network connectivity, routing, DNS & private endpoints
 
-### 8.1 Hybrid connectivity — S2S VPN connection
+### 8.1 Hybrid connectivity — VNet peering
 
-The hub gateway terminates a site-to-site connection (`hub-to-onprem`) to the
-on-prem simulation, running BGP over the IPsec tunnel.
+The hub VNet is peered with the on-prem simulation VNet in both directions with
+forwarded traffic allowed, so the hub firewall transits on-prem ↔ spoke traffic.
 
-![VPN connection hub-to-onprem](images/09-vpn-connection.png)
-
-- **Status:** Connected
-- **Type:** VNet-to-VNet (S2S) between `hub-vpngw` and `onprem-vpngw`
-- **Data in / out:** ~90 KiB each way (live tunnel traffic)
+- **Peering state:** Connected (both directions)
+- **Forwarded traffic:** allowed (firewall transit)
+- On-prem routes `0.0.0.0/0` and the Fabric spoke prefix to the firewall
+  (`10.0.0.4`); the firewall forwards/returns via peering.
 
 ### 8.2 Spoke connectivity — classic peering + UDR
 
@@ -150,8 +145,8 @@ With the **Fabric workload spoke** now deployed, the classic peering + UDR model
 is realized end to end.
 
 **Hub → spoke VNet peering** (`hub-to-fabric-spoke`): **Fully Synchronized /
-Connected**, with gateway transit enabled so the spoke reaches on-prem through
-the hub VPN gateway.
+Connected**, with forwarded traffic allowed so the firewall transits traffic
+between the spoke and on-prem (which is separately peered to the hub).
 
 ![Hub VNet peering to Fabric spoke](images/12-hub-peering.png)
 
@@ -195,7 +190,7 @@ A private endpoint in the hub `pe-subnet` validates the private-link data path
 |---|---|---|
 | 00-bootstrap | `azrlab0001tfstate` (remote state) | ✅ |
 | 10-management-groups | MG hierarchy | ✅ (control plane) |
-| 20-connectivity-hub | Hub VNet, Firewall + Policy, DNS Resolver, VPN GW | ✅ |
+| 20-connectivity-hub | Hub VNet, Firewall + Policy, DNS Resolver | ✅ |
 | 40-monitoring | `law-central` Log Analytics | ✅ |
 | 30-egress / 50-security | Egress NVA / Defender plans | ⏳ pending |
 

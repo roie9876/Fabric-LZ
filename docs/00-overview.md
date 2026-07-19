@@ -43,19 +43,18 @@ Tenant Root
 ## Connectivity hub components
 
 - Hub VNet with **Azure Firewall** (Standard SKU, + Firewall Policy)
-- **ExpressRoute Gateway** to on-prem (zone-redundant SKU)
 - **Azure DDoS Protection** plan
 - **Private DNS Resolver** (inbound + outbound)
 - **Secure egress** subnet routing `0.0.0.0/0` to the SWG NVA
 - Central diagnostic logs shipped to the monitor subscription
 
-## Hybrid connectivity (ExpressRoute)
+## Hybrid connectivity (VNet peering + firewall transit)
 
-- **Dual ExpressRoute circuits** for high availability (active/active).
-- Each circuit sized for high bandwidth (e.g. 10 Gbps).
-- **MACsec** (layer-2) encryption on each circuit.
-- **Bidirectional BGP** with documented, tested failover paths.
-- Zone-redundant ExpressRoute Gateway.
+- On-premises is joined to the hub over **VNet peering**; the hub **Azure
+  Firewall** is the transit / default gateway for on-prem ↔ spoke and on-prem → internet.
+- On-prem routes the Fabric spoke prefix and `0.0.0.0/0` to the firewall; the
+  firewall transits to the spoke and SNATs to the internet.
+- No VPN or ExpressRoute gateway and no `GatewaySubnet` are deployed.
 
 ## Security & governance
 
@@ -77,8 +76,8 @@ Dev**, each traffic-isolated and governed by the same central policies.
 | Flow | Path | Control |
 |---|---|---|
 | Spoke → Spoke | Spoke A → Azure Firewall → Spoke B | forced UDR + FW policy |
-| Spoke → On-Prem | Spoke → Firewall → ER Gateway → On-Prem | FW policy + BGP |
-| On-Prem → Spoke | On-Prem → ER Gateway → Firewall → Spoke | FW policy |
+| Spoke → On-Prem | Spoke → Azure Firewall → On-Prem | FW policy |
+| On-Prem → Spoke | On-Prem → Azure Firewall → Spoke | FW policy |
 | Spoke → Internet | Spoke → Firewall → SWG → Internet | NSG/UDR/Policy block direct egress |
 
 > No direct VNet peering between spokes — all inter-spoke traffic is via the hub
@@ -99,7 +98,6 @@ Dev**, each traffic-isolated and governed by the same central policies.
 | Subnet | CIDR | Role |
 |---|---|---|
 | `AzureFirewallSubnet` | `x.x.x.x/26` | Azure Firewall data plane |
-| `GatewaySubnet` | `x.x.x.x/27` | ExpressRoute Gateway |
 | `DNSInboundResolverSubnet` | `x.x.x.x/28` | Private DNS Resolver inbound |
 | `DNSOutboundResolverSubnet` | `x.x.x.x/28` | Private DNS Resolver outbound |
 | `EgressSwgSubnet` | `x.x.x.x/27` | SWG egress NVA |

@@ -91,11 +91,10 @@ resource "azurerm_route" "default_to_firewall" {
   next_hop_in_ip_address = data.azurerm_firewall.hub.ip_configuration[0].private_ip_address
 }
 
-# Return-path override: force PE -> on-prem traffic back through the hub firewall.
-# Without this, BGP propagation on the pe-subnet route table teaches the on-prem
-# prefix via the VPN gateway (more specific than 0.0.0.0/0), so return traffic
-# bypasses the firewall and breaks symmetric inspection. An explicit UDR for the
-# on-prem CIDR wins over the BGP-learned route, hairpinning it through the firewall.
+# Return-path route: PE -> on-prem traffic goes back through the hub firewall.
+# On-prem is peered with the hub (not the spoke), and VNet peering is not
+# transitive, so the spoke reaches on-prem via the firewall transit. This explicit
+# route sends the on-prem prefix to the firewall, keeping inspection symmetric.
 resource "azurerm_route" "onprem_return_to_firewall" {
   count                  = var.force_onprem_return_via_firewall ? 1 : 0
   name                   = "onprem-to-firewall"

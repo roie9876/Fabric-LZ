@@ -64,7 +64,7 @@ STOP gate:
 | Azure subscriptions and management-group placement | Cloud platform | Target subscriptions exist; deployment identity has approved roles |
 | Private Terraform runner | Cloud platform | Runner can reach Azure Resource Manager, Git, and the private state endpoint |
 | Private backend endpoint and DNS path | Cloud/network | State storage resolves privately and TCP 443 succeeds from the runner |
-| ExpressRoute/VPN and BGP | Network | On-premises routes to hub and Fabric spoke are learned in both directions |
+| On-prem to hub connectivity | Network | On-prem is peered to the hub; on-prem routes the Fabric spoke and internet to the hub firewall (transit) |
 | Azure Firewall/SWG rules | Network/security | Terraform, Fabric, OneLake, Entra, Azure Relay, and gateway endpoints are allowed |
 | Production SQL Server | Database | Supported SQL instance, database, least-privilege login, backup, TLS, and operations ownership |
 | Production OPDG hosts | Data platform | Windows Server 2019+, 8 cores/8 GB+ recommended, SSD, latest supported gateway, HA design |
@@ -73,7 +73,7 @@ STOP gate:
 
 **Production release gate:** do not call this a production landing-zone
 deployment until the missing customer-owned controls above are implemented and
-approved. The reference lab uses one subscription, an Azure VPN simulation,
+approved. The reference lab uses one subscription, a peered on-prem simulation,
 empty Firewall rule collections, and single OPDG/SQL hosts. Those are not a
 production baseline.
 
@@ -221,7 +221,7 @@ The customer must complete this checklist before Terraform:
   data-plane access.
 - [ ] The private runner resolves the state account to a private IP and reaches
   it on TCP 443.
-- [ ] ExpressRoute/VPN, BGP, DNS forwarding, Firewall/SWG rules, and return
+- [ ] On-prem to hub VNet peering, DNS forwarding, Firewall/SWG rules, and return
   routes are approved and tested.
 - [ ] A Fabric Administrator can open the Fabric Admin portal and can become
   Workspace A Admin.
@@ -244,8 +244,8 @@ As of **2026-07-13**:
   registration**.
 - Runtime state restored on **2026-07-19**: F2 is `Active`; all six subscription
   VMs are `VM running`; the Container App revision is active with one replica.
-- Resume validation passed: VPN and BGP are connected, the Fabric spoke route is
-  learned, SQL and OPDG are healthy, all five private Fabric endpoints resolve
+- Resume validation passed: on-prem to hub peering is connected, the Fabric spoke
+  is reachable via the firewall, SQL and OPDG are healthy, all five private Fabric endpoints resolve
   and accept TCP 443, and authenticated Workspace A access returns HTTP `200`.
 - Workspace A public access is still `Allow`. Do not restrict it yet.
 
@@ -516,7 +516,7 @@ were deployed in this order:
 
 `platform/30-egress` and `platform/50-security` are design stubs. Do not mark
 egress or security complete because Terraform returns no changes for those
-roots. Customer Firewall/SWG rules, ExpressRoute, Defender, policy, and CNAPP
+roots. Customer Firewall/SWG rules, Defender, policy, and CNAPP
 controls require separate approved implementations.
 
 Set the runner's subscription context for each implemented root:
@@ -549,8 +549,9 @@ Expected final detailed exit code: `0` (`No changes`). Review
 [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md) for Layer 1 screenshots and the
 as-built inventory.
 
-After Stage 20, the network team must add production ExpressRoute/VPN
-connectivity and approved Firewall/SWG rules because this repository does not.
+After Stage 20, the network team must establish on-prem to hub connectivity (VNet
+peering with firewall transit) and approved Firewall/SWG rules because this
+repository does not.
 After Stage 40, verify the Log Analytics workspace. AMPLS, DCRs, alerting, and
 workbooks described in the architecture are not created by the starter root.
 
@@ -764,15 +765,13 @@ In Azure, also verify:
 
 - `pe-subnet` has the approved prefix and private endpoint policies disabled.
 - `to-firewall` is `0.0.0.0/0` to the actual hub Firewall private IP.
-- `fabric-spoke-to-hub` and `hub-to-fabric-spoke` are `Connected`.
-- Gateway transit is enabled on the hub side and remote gateway use on the
-  spoke side.
+- `fabric-spoke-to-hub` and `hub-to-fabric-spoke` are `Connected` with forwarded
+  traffic allowed (firewall transit).
 - DNS links for hub and Fabric spoke report completed/succeeded.
 - F capacity is active and has the approved administrator.
 
-If a peering fails with a remote-gateway error, stop. The hub gateway and hub
-peering transit configuration must exist before the spoke can use remote
-gateways. Do not disable gateway transit merely to make Terraform apply.
+The spoke reaches on-prem via the hub firewall (on-prem is separately peered to
+the hub; VNet peering is non-transitive). No gateway transit is used.
 
 **STOP:** all checks must pass and the post-apply plan must return `0`.
 
@@ -1149,7 +1148,7 @@ worksheet.
 
 Use this path only for a sandbox. It adds one SQL Developer VM and one OPDG VM
 to an **existing** VNet/subnet named in the private variables. It does not create
-the simulated on-premises VNet, VPN gateways, BGP, NAT, or private runner.
+the simulated on-premises VNet, hub peering, NAT, or private runner.
 Read [workloads/onprem-lab/README.md](workloads/onprem-lab/README.md) before
 planning this optional root.
 
@@ -1543,7 +1542,7 @@ az rest --method get \
 ```
 
 Pausing F2 stops Fabric compute billing. VM deallocation stops VM compute
-billing. Azure Firewall, VPN gateways, NAT Gateway, disks, public IPs, Private
+billing. Azure Firewall, NAT Gateway, disks, public IPs, Private
 Endpoints, DNS, state storage, and OneLake storage continue to incur charges.
 
 ## Evidence acceptance criteria
@@ -1604,7 +1603,7 @@ Approval is required before applying a destroy plan.
 | Backend `403` | Runner lacks Blob data-plane role, wrong identity, or network rules block it | Verify private DNS/TCP 443, then **Storage Blob Data Contributor** and token context; do not enable storage keys |
 | Backend name resolves publicly | Private DNS record/link/forwarder missing | Stop; network/DNS owner fixes `privatelink.blob.core.windows.net` path |
 | Phase A data source not found | `env`, `org`, or `subcode_connectivity`/`subcode_monitor` mismatch | Compare actual Layer 1 names with private tfvars; regenerate plan |
-| Peering remote-gateway error | Hub gateway/transit missing or another peering already uses remote gateways | Network owner corrects gateway/peering design; do not disable transit as a workaround |
+| Peering not Connected | Hub or on-prem/spoke peering missing, or forwarded traffic not allowed | Network owner corrects the VNet peering (both directions, allow forwarded traffic); the firewall is the transit |
 | Phase B `409 Workspace validation failed` | Deployment identity is not Workspace A Admin, or tenant/workspace ID is wrong | Repeat Step 7 read-back, verify IDs, delete saved plan, replan |
 | Private endpoint not Approved | Private Link service validation or Azure permissions failed | Inspect endpoint connection state and activity log; do not lock down |
 | FQDN resolves publicly/NXDOMAIN | Incorrect workspace FQDN, DNS zone group, zone link, or on-prem forwarder | Reconstruct FQDN from workspace ID; compare PE NIC IPs and DNS records |

@@ -58,7 +58,7 @@ a minimal policy baseline.
 
 ### 2. Hub and spoke topology
 
-Central hub (Firewall, ER/VPN gateway, DDoS, Private DNS Resolver, egress),
+Central hub (Firewall, DDoS, Private DNS Resolver, egress),
 workload spokes, on-prem and monitoring — all east-west via the firewall.
 
 ![Hub and spoke topology](docs/images/02-hub-spoke.png)
@@ -81,7 +81,7 @@ guards on every push.
 
 ### Layer 1: Platform (Landing Zone foundation)
 
-Management groups, connectivity hub (Azure Firewall, ER/VPN gateway, DDoS,
+Management groups, connectivity hub (Azure Firewall, DDoS,
 Private DNS Resolver), secure egress, central monitoring, and security tooling.
 Deployed once, in stage order. **Full detail + diagrams:**
 [platform/README.md](platform/README.md).
@@ -107,7 +107,7 @@ See [workloads/foundry/README.md](workloads/foundry/README.md) and
 platform/            Layer 1 — Landing Zone foundation (Terraform stages)
   00-bootstrap/         remote state, providers, CI identity
   10-management-groups/ mgmt / workloads / monitor / sandbox
-  20-connectivity-hub/  hub VNet, Firewall + policy, ER/VPN GW, DDoS, DNS resolver
+  20-connectivity-hub/  hub VNet, Firewall + policy, DDoS, DNS resolver
   30-egress/            forced-tunnel egress to the SWG (vendor-agnostic)
   40-monitoring/        Log Analytics, AMPLS, alerts, DCR, workbooks
   50-security/          Defender for Cloud, CNAPP onboarding hooks

@@ -82,29 +82,33 @@ Source for all rules: `172.16.0.0/16` (on-premises).
 
 ## Companion changes (also in Terraform)
 
-These make the traffic actually traverse the firewall and make FQDN rules resolvable:
+On-prem reaches the hub over **VNet peering** and the hub firewall is the transit /
+default gateway. The rules only matter once traffic is routed to the firewall:
 
 1. **DNS proxy** on the firewall policy → servers = hub resolver inbound (`10.0.0.100`).
    [platform/20-connectivity-hub/main.tf](../platform/20-connectivity-hub/main.tf)
 2. **Firewall diagnostics** → central LAW, `Dedicated` destination type, categories
-   `AZFWApplicationRule`, `AZFWNetworkRule`, `AZFWNatRule`, `AZFWDnsProxy`, `AZFWThreatIntel`.
-3. **Forced tunnel (forward path):** route table on `GatewaySubnet` → `10.2.0.0/24` to the
-   firewall. BGP propagation stays enabled.
-   [platform/20-connectivity-hub/firewall-rules.tf](../platform/20-connectivity-hub/firewall-rules.tf)
-4. **Forced tunnel (return path):** pe-subnet route `172.16.0.0/16` → firewall, so PE→on-prem
-   traffic hairpins back symmetrically. [workloads/fabric/main.tf](../workloads/fabric/main.tf)
-5. **On-prem VNet DNS → `10.0.0.4`** (the firewall) — manual/`onprem-lab` step, so client and
-   firewall resolve FQDNs identically (required for FQDN network rules).
-6. *(Optional, to also inspect www)* on-prem default route `0.0.0.0/0` into the tunnel → firewall.
+   `AZFWApplicationRule`, `AZFWNetworkRule`, `AZFWNatRule`, `AZFWThreatIntel`
+   (`AZFWDnsProxy` is not a supported category on this SKU/region).
+3. **On-prem → firewall (forward path):** the on-prem workload subnet UDR sends the
+   Fabric spoke prefix and `0.0.0.0/0` to the firewall (`10.0.0.4`). Because on-prem is
+   **peered** to the hub, the firewall is a valid VirtualAppliance next hop. *(Applied on
+   the on-prem sim via CLI; the on-prem network is not in a Terraform root.)*
+4. **Return path:** pe-subnet route `172.16.0.0/16` → firewall, so PE→on-prem traffic
+   transits the firewall symmetrically (VNet peering is non-transitive).
+   [workloads/fabric/main.tf](../workloads/fabric/main.tf)
+5. **Management-plane survival:** when the Terraform runner shares the on-prem subnet,
+   the `management-plane` rule allows `management.azure.com`, `*.blob.core.windows.net`,
+   etc. so the runner keeps ARM/state access through the firewall.
 
 ## Apply notes
 
-- Remove the temporary manual `allow-all` network rule (in `DefaultNetworkRuleCollectionGroup`)
-  so these documented rules take effect and gaps surface as denies:
-  `az network firewall policy rule-collection-group delete --policy-name azr-sbx-lab-0001-fwpol-hub -g azr-sbx-lab-0001-rg-fw-hub -n DefaultNetworkRuleCollectionGroup`
-- Apply stage 20 **targeted** to avoid the known `azurerm_public_ip.fw` replacement drift:
-  target `azurerm_firewall_policy.hub`, `azurerm_firewall_policy_rule_collection_group.opdg_fabric`,
-  `azurerm_monitor_diagnostic_setting.firewall`, and the `azurerm_route*`/association for GatewaySubnet.
+- Remove any temporary broad `allow-all` rule so the documented rules take effect and
+  gaps surface as denies.
+- Apply stage 20 **targeted** to keep the change surgical (PIP replacement drift is
+  suppressed via `lifecycle { ignore_changes = [ip_tags, zones] }`): target
+  `azurerm_firewall_policy.hub`, `azurerm_firewall_policy_rule_collection_group.opdg_fabric`,
+  and `azurerm_monitor_diagnostic_setting.firewall`.
 
 ## Discovered gaps (fill in after each run)
 

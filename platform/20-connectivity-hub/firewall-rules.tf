@@ -1,5 +1,5 @@
 ##
-# OPDG + Fabric firewall rules (documented baseline) + diagnostics + forced tunnel
+# OPDG + Fabric firewall rules (documented baseline) + diagnostics
 #
 # Purpose: route all on-premises traffic through the hub Azure Firewall and open
 # ONLY the endpoints Microsoft documents for the on-premises data gateway (OPDG)
@@ -259,33 +259,4 @@ resource "azurerm_firewall_policy_rule_collection_group" "opdg_fabric" {
       }
     }
   }
-}
-
-# ---------- Forced tunnel: on-prem -> Fabric spoke via the hub firewall ----------
-# The GatewaySubnet has no route table by default, so on-prem->spoke traffic goes
-# straight over the peering and bypasses the firewall. This UDR steers the Fabric
-# spoke prefix to the firewall. BGP route propagation stays ENABLED so the gateway
-# keeps learning/advertising all other routes.
-resource "azurerm_route_table" "gateway" {
-  count               = var.enable_gatewaysubnet_forced_tunnel ? 1 : 0
-  name                = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-rt-gatewaysubnet"
-  location            = var.location
-  resource_group_name = azurerm_resource_group.net.name
-  tags                = local.tags
-}
-
-resource "azurerm_route" "gw_to_fabric_via_fw" {
-  count                  = var.enable_gatewaysubnet_forced_tunnel ? 1 : 0
-  name                   = "fabric-spoke-to-firewall"
-  resource_group_name    = azurerm_resource_group.net.name
-  route_table_name       = azurerm_route_table.gateway[0].name
-  address_prefix         = var.fabric_spoke_cidr
-  next_hop_type          = "VirtualAppliance"
-  next_hop_in_ip_address = azurerm_firewall.hub.ip_configuration[0].private_ip_address
-}
-
-resource "azurerm_subnet_route_table_association" "gateway" {
-  count          = var.enable_gatewaysubnet_forced_tunnel ? 1 : 0
-  subnet_id      = azurerm_subnet.gateway.id
-  route_table_id = azurerm_route_table.gateway[0].id
 }

@@ -6,7 +6,7 @@ The heart of the landing zone. Creates the central Hub & Spoke networking.
 
 | Resource | Purpose |
 |---|---|
-| Hub VNet + subnets | `AzureFirewallSubnet`, `GatewaySubnet`, DNS Resolver in/out, SWG egress |
+| Hub VNet + subnets | `AzureFirewallSubnet`, DNS Resolver in/out, SWG egress |
 | Azure Firewall + Policy | Single inspection point for east-west and on-prem traffic |
 | DDoS Protection plan | Protects hub public IPs (toggle with `enable_ddos`) |
 | Private DNS Resolver | Inbound + outbound endpoints for hybrid DNS |
@@ -28,6 +28,4 @@ terraform apply -var-file=../../_private/enterprise.private.tfvars
 
 ## Not yet included (extend as needed)
 
-- ExpressRoute Gateway + connection (add in `GatewaySubnet`).
-- Firewall rule collection groups (application/network rules).
 - Private DNS zones for private endpoints (can live here or in a dedicated DNS stage).
