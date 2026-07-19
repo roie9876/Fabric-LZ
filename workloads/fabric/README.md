@@ -21,7 +21,7 @@ runs and whether the evidence is command output or a portal screenshot.
 | 7 | Fabric portal | Create public semantic model/report and bind OPDG | **STOP:** gateway binding and refresh must pass |
 | 8 | Fabric API + on-prem tests | Re-run private authenticated, DNS, SQL and refresh tests | **STOP:** all tests must pass |
 | 9 | Fabric portal/API | Deny Workspace A public inbound access | **STOP:** final private retest required |
-| 10 | Azure API | Pause F2 and deallocate lab VMs when idle | **Complete for break**; F2 paused, all VMs deallocated |
+| 10 | Azure API | Pause/resume F2 and lab compute | **Resumed 2026-07-19**; F2 active, all stopped compute restored |
 
 ### Command execution rule
 
@@ -634,6 +634,31 @@ The temporary cost-control shutdown completed successfully:
   revision count is `0`.
 - Final verification: running VM count `0`, Fabric state `Paused`, active
   Container App revision count `0`.
+
+#### Resume checkpoint (2026-07-19)
+
+The complete July 13 shutdown set was restored:
+
+- Fabric capacity `azrsbxlab0001fabcap`: `Active`, provisioning `Succeeded`.
+- All six subscription VMs: `VM running`, provisioning `Succeeded`.
+- Container App revision `app-7bsfsfvbjjufs--3i7k5i8`: active with one replica.
+- Hub-to-on-prem VPN: `Connected`; BGP peer `172.16.255.30`: `Connected`.
+- On-prem gateway learns `10.2.0.0/24` through eBGP AS 65515 with next hop
+  `10.0.0.94`.
+- SQL service and `SQL_READY` marker are present; the protected managed-command
+  validation remains `Succeeded`, exit code `0`, with three authenticated rows.
+- OPDG reaches SQL on TCP 1433 and resolves the five Workspace A FQDNs to
+  `10.2.0.4`-`10.2.0.8`; TCP 443 succeeds for all five.
+- Runner authenticated private Workspace A API validation resolves to
+  `10.2.0.4` and returns HTTP `200` for the expected workspace.
+- The live PE subnet had default outbound access disabled; Terraform now pins
+  `default_outbound_access_enabled = false` so future plans cannot enable it.
+- Final detailed-exit-code plans: Fabric Phase A `0`, Phase B `0`, on-prem lab
+  `0` (**No changes** for all three states).
+
+The next action remains Phase 5: install and register the On-premises Data
+Gateway. Workspace A public access remains enabled until all later stop gates
+pass.
 
 To resume Phase 5, start only the Fabric lab dependencies:
 

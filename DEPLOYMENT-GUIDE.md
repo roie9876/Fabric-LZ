@@ -173,8 +173,11 @@ As of **2026-07-13**:
 - SQL and OPDG lab VMs: deployed and validated.
 - Next deployment action: **Phase 5, interactive OPDG installation and
   registration**.
-- Cost-control state: F2 is `Paused`, all six subscription VMs are
-  `VM deallocated`, and the unrelated Container App has no active revision.
+- Runtime state restored on **2026-07-19**: F2 is `Active`; all six subscription
+  VMs are `VM running`; the Container App revision is active with one replica.
+- Resume validation passed: VPN and BGP are connected, the Fabric spoke route is
+  learned, SQL and OPDG are healthy, all five private Fabric endpoints resolve
+  and accept TCP 443, and authenticated Workspace A access returns HTTP `200`.
 - Workspace A public access is still `Allow`. Do not restrict it yet.
 
 ## Execution model

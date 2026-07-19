@@ -71,6 +71,7 @@ resource "azurerm_subnet" "pe" {
   virtual_network_name              = azurerm_virtual_network.spoke.name
   address_prefixes                  = [var.fabric_pe_subnet_prefix]
   private_endpoint_network_policies = "Disabled"
+  default_outbound_access_enabled   = false
 }
 
 # ---------- Forced-tunnel route table (0.0.0.0/0 -> hub firewall) ----------
