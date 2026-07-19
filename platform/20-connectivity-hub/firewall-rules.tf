@@ -24,21 +24,33 @@
 ##
 
 # ---------- Central Log Analytics (owned by 40-monitoring) ----------
+# The firewall diagnostic setting references the 40-monitoring workspace. Because
+# each stage is an independent Terraform root, 40-monitoring must be applied before
+# this setting. For a first-time deploy that follows 00->10->20->...->40 order,
+# apply stage 20 once with enable_fw_diagnostics=false, deploy 40-monitoring, then
+# re-apply stage 20 with it true (or simply apply 40-monitoring before 20).
 locals {
   monitor_rg  = "azr-${var.env}-${var.org}-${var.subcode_monitor}-rg-monitor-network"
   monitor_law = "azr-${var.env}-${var.org}-${var.subcode_monitor}-law-central"
 }
 
 data "azurerm_log_analytics_workspace" "central" {
+  count               = var.enable_fw_diagnostics ? 1 : 0
   name                = local.monitor_law
   resource_group_name = local.monitor_rg
 }
 
 # ---------- Firewall diagnostics -> LAW (resource-specific AZFW* tables) ----------
+moved {
+  from = azurerm_monitor_diagnostic_setting.firewall
+  to   = azurerm_monitor_diagnostic_setting.firewall[0]
+}
+
 resource "azurerm_monitor_diagnostic_setting" "firewall" {
+  count                          = var.enable_fw_diagnostics ? 1 : 0
   name                           = "diag-to-law"
   target_resource_id             = azurerm_firewall.hub.id
-  log_analytics_workspace_id     = data.azurerm_log_analytics_workspace.central.id
+  log_analytics_workspace_id     = data.azurerm_log_analytics_workspace.central[0].id
   log_analytics_destination_type = "Dedicated" # populate AZFWNetworkRule / AZFWApplicationRule / AZFWDnsProxy
 
   enabled_log { category = "AZFWApplicationRule" }

@@ -84,6 +84,12 @@ variable "enable_fw_dns_proxy" {
   default     = true
 }
 
+variable "enable_fw_diagnostics" {
+  description = "Create the firewall diagnostic setting to the 40-monitoring LAW. Requires 40-monitoring to exist first; set false for the initial stage-20 apply if the monitoring workspace is not yet deployed, then re-apply as true."
+  type        = bool
+  default     = true
+}
+
 variable "dns_proxy_servers" {
   description = "Upstream DNS servers the firewall proxy forwards to (the hub Private DNS Resolver inbound endpoint)."
   type        = list(string)

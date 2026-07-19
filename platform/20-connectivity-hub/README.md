@@ -22,6 +22,11 @@ terraform init -backend-config=../../_private/backend.hcl
 terraform apply -var-file=../../_private/enterprise.private.tfvars
 ```
 
+> **Ordering:** the firewall diagnostic setting references the `40-monitoring`
+> Log Analytics workspace. Apply `40-monitoring` **before** this stage, or set
+> `enable_fw_diagnostics = false` for the first apply and re-apply as `true` once
+> monitoring exists. Everything else in this stage is independent.
+
 ## Outputs consumed by workloads
 
 - `hub_vnet_id`, `firewall_private_ip`, `dns_inbound_endpoint_ip`.
