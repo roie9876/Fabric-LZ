@@ -146,11 +146,24 @@ groups or connectivity configurations are used.
 
 ### 8.3 User-defined routes (UDRs) & VNet peerings
 
-> **Applied per workload spoke.** Forced-tunnel UDRs (`0.0.0.0/0 → Firewall`)
-> and hub↔spoke **classic VNet peerings** are created when each workload spoke
-> (Fabric / Foundry) is deployed. There are no route tables or peerings in the
-> hub scope until a spoke lands. This section will be filled with portal
-> screenshots once those stages run.
+With the **Fabric workload spoke** now deployed, the classic peering + UDR model
+is realized end to end.
+
+**Hub → spoke VNet peering** (`hub-to-fabric-spoke`): **Fully Synchronized /
+Connected**, with gateway transit enabled so the spoke reaches on-prem through
+the hub VPN gateway.
+
+![Hub VNet peering to Fabric spoke](images/12-hub-peering.png)
+
+**Forced-tunnel UDR** on the Fabric spoke (`azr-sbx-lab-0001-rt-fabric-spoke`):
+a single route sends **`0.0.0.0/0` → VirtualAppliance `10.0.0.4`** (the Azure
+Firewall), so all spoke egress is inspected by the hub firewall.
+
+![Spoke forced-tunnel route table](images/13-spoke-udr-forced-tunnel.png)
+
+| Route | Destination | Next hop type | Next hop |
+|---|---|---|---|
+| `to-firewall` | `0.0.0.0/0` | VirtualAppliance | `10.0.0.4` (hub Azure Firewall) |
 
 ### 8.4 DNS — Private DNS zone
 
