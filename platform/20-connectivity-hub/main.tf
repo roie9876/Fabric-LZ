@@ -73,24 +73,27 @@ resource "azurerm_virtual_network" "hub" {
 }
 
 resource "azurerm_subnet" "firewall" {
-  name                 = "AzureFirewallSubnet" # fixed name required by Azure
-  resource_group_name  = azurerm_resource_group.net.name
-  virtual_network_name = azurerm_virtual_network.hub.name
-  address_prefixes     = [var.subnet_prefixes.firewall]
+  name                            = "AzureFirewallSubnet" # fixed name required by Azure
+  resource_group_name             = azurerm_resource_group.net.name
+  virtual_network_name            = azurerm_virtual_network.hub.name
+  address_prefixes                = [var.subnet_prefixes.firewall]
+  default_outbound_access_enabled = false # match secure live state (no implicit outbound)
 }
 
 resource "azurerm_subnet" "gateway" {
-  name                 = "GatewaySubnet" # fixed name required by Azure
-  resource_group_name  = azurerm_resource_group.net.name
-  virtual_network_name = azurerm_virtual_network.hub.name
-  address_prefixes     = [var.subnet_prefixes.gateway]
+  name                            = "GatewaySubnet" # fixed name required by Azure
+  resource_group_name             = azurerm_resource_group.net.name
+  virtual_network_name            = azurerm_virtual_network.hub.name
+  address_prefixes                = [var.subnet_prefixes.gateway]
+  default_outbound_access_enabled = false
 }
 
 resource "azurerm_subnet" "dns_inbound" {
-  name                 = "DNSInboundResolverSubnet"
-  resource_group_name  = azurerm_resource_group.net.name
-  virtual_network_name = azurerm_virtual_network.hub.name
-  address_prefixes     = [var.subnet_prefixes.dns_inbound]
+  name                            = "DNSInboundResolverSubnet"
+  resource_group_name             = azurerm_resource_group.net.name
+  virtual_network_name            = azurerm_virtual_network.hub.name
+  address_prefixes                = [var.subnet_prefixes.dns_inbound]
+  default_outbound_access_enabled = false
 
   delegation {
     name = "dns-resolver"
@@ -101,10 +104,11 @@ resource "azurerm_subnet" "dns_inbound" {
 }
 
 resource "azurerm_subnet" "dns_outbound" {
-  name                 = "DNSOutboundResolverSubnet"
-  resource_group_name  = azurerm_resource_group.net.name
-  virtual_network_name = azurerm_virtual_network.hub.name
-  address_prefixes     = [var.subnet_prefixes.dns_outbound]
+  name                            = "DNSOutboundResolverSubnet"
+  resource_group_name             = azurerm_resource_group.net.name
+  virtual_network_name            = azurerm_virtual_network.hub.name
+  address_prefixes                = [var.subnet_prefixes.dns_outbound]
+  default_outbound_access_enabled = false
 
   delegation {
     name = "dns-resolver"
@@ -115,10 +119,11 @@ resource "azurerm_subnet" "dns_outbound" {
 }
 
 resource "azurerm_subnet" "egress_swg" {
-  name                 = "EgressSwgSubnet"
-  resource_group_name  = azurerm_resource_group.net.name
-  virtual_network_name = azurerm_virtual_network.hub.name
-  address_prefixes     = [var.subnet_prefixes.egress_swg]
+  name                            = "EgressSwgSubnet"
+  resource_group_name             = azurerm_resource_group.net.name
+  virtual_network_name            = azurerm_virtual_network.hub.name
+  address_prefixes                = [var.subnet_prefixes.egress_swg]
+  default_outbound_access_enabled = false
 }
 
 # ---------- DDoS Protection ----------
@@ -137,6 +142,19 @@ resource "azurerm_firewall_policy" "hub" {
   location            = var.location
   sku                 = "Standard"
   tags                = local.tags
+
+  # DNS proxy lets the firewall resolve FQDNs itself. Required so that
+  # FQDN-based *network* rules (Service Bus relay, Fabric TDS 1433) match
+  # reliably and so FQDNs appear in the AZFWApplicationRule flow logs.
+  # Clients (on-prem VNet) must use the firewall as their DNS server for the
+  # resolved IPs to line up — see docs/… and the on-prem VNet DNS setting.
+  dynamic "dns" {
+    for_each = var.enable_fw_dns_proxy ? [1] : []
+    content {
+      proxy_enabled = true
+      servers       = var.dns_proxy_servers
+    }
+  }
 }
 
 resource "azurerm_public_ip" "fw" {
@@ -146,10 +164,16 @@ resource "azurerm_public_ip" "fw" {
   allocation_method   = "Static"
   sku                 = "Standard"
   tags                = local.tags
+
+  # Azure injects platform ip_tags on this PIP and normalizes zones; ignore both
+  # so Terraform never force-replaces the firewall's public IP (would cause an outage).
+  lifecycle {
+    ignore_changes = [ip_tags, zones]
+  }
 }
 
 resource "azurerm_firewall" "hub" {
-  name                = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-fw-hub"
+  name = "azr-${var.env}-${var.org}-${var.subcode_connectivity}-fw-hub"
   # Azure Firewall must reside in the SAME resource group as the VNet/subnet it
   # references (AzureFirewallSubnet lives in the net RG), so deploy it there.
   # The public IP and firewall policy may remain in the fw RG.

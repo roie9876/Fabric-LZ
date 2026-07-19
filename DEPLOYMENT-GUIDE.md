@@ -39,6 +39,7 @@ as-built evidence, see [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md).
 - [Evidence acceptance criteria](#evidence-acceptance-criteria)
 - [Rollback order](#rollback-order)
 - [Troubleshooting matrix](#troubleshooting-matrix)
+- [Firewall rule reference (OPDG + Fabric)](#firewall-rule-reference-opdg--fabric)
 - [Reference lab resume appendix](#reference-lab-resume-appendix)
 
 ## Scope and release boundary
@@ -631,6 +632,10 @@ Required OPDG public-cloud outbound rules include:
 Prefer FQDN rules or documented Microsoft service tags where supported. Azure
 Relay has no dedicated service tag; the gateway app's network ports test is the
 final authority for its current region endpoints.
+
+The complete, tag-free rule set (network, application, TDS, management-plane, and
+default-deny) is in the [Firewall rule reference (OPDG + Fabric)](#firewall-rule-reference-opdg--fabric)
+appendix.
 
 **Evidence:** BGP/route tables, DNS forwarding, Firewall/SWG change, and TCP
 tests.
@@ -1634,6 +1639,81 @@ The AzureRM backend uses an Azure Blob lease. If Terraform reports a lock:
 | Architecture diagrams | `docs/diagrams/` and `docs/images/` |
 | Terraform validation | Run in each Terraform root before plan/apply |
 | Secrets check | `bash scripts/check-sensitive.sh` |
+
+## Firewall rule reference (OPDG + Fabric)
+
+This is the complete, **tag-free** firewall rule set that lets the on-premises
+data gateway (OPDG) and Microsoft Fabric operate through the hub Azure Firewall.
+Every rule is an explicit **FQDN** or **IP/port** — no Azure service tags and no
+FQDN tags — so the same set can be replicated on a customer on-premises firewall
+that has no Azure tag support.
+
+- Implemented as code: [platform/20-connectivity-hub/firewall-rules.tf](platform/20-connectivity-hub/firewall-rules.tf)
+  (rule collection group `opdg-fabric` on the hub firewall policy).
+- Standalone reference with discovery queries: [docs/fabric-opdg-firewall-rules.md](docs/fabric-opdg-firewall-rules.md)
+- Sources: Microsoft OPDG communication settings and the Fabric allowlist URLs docs.
+
+**Rule processing order** in Azure Firewall is DNAT → Network → Application (a
+network match short-circuits application rules). Therefore only IP/private-link
+flows live in the network collection; all HTTP/HTTPS/TDS flows are application
+rules (Azure Firewall rejects wildcard FQDNs in network rules).
+
+### Network rules — `opdg-network-allow` (priority 100, Allow)
+
+Source for all rules: the on-premises address space (e.g. `172.16.0.0/16`).
+
+| Rule | Destination | Ports | Purpose |
+|---|---|---|---|
+| `fabric-privatelink-443` | Fabric private-endpoint subnet (e.g. `10.2.0.0/27`) | TCP 443 | Fabric data-plane over Private Link |
+
+### Application rules — `opdg-app-allow` (priority 200, Allow)
+
+Source for all rules: the on-premises address space.
+
+| Rule | FQDNs | Protocol/Port | Purpose |
+|---|---|---|---|
+| `gateway-auth` | `*.login.windows.net`, `login.live.com`, `aadcdn.msauth.net`, `login.microsoftonline.com`, `*.microsoftonline-p.com` | Https 443 | Entra ID / OAuth2 sign-in |
+| `gateway-core` | `*.download.microsoft.com`, `*.powerbi.com`, `*.analysis.windows.net`, `*.servicebus.windows.net`, `*.dc.services.visualstudio.com`, `ecs.office.com`, `gatewayadminportal.azure.com` | Https 443 | Cluster discovery, installer, **Azure Relay/Service Bus**, telemetry, admin |
+| `gateway-ncsi` | `*.msftncsi.com` | Http 80 | Internet connectivity test |
+| `fabric-workload` | `*.core.windows.net`, `*.dfs.fabric.microsoft.com`, `*.frontend.clouddatahub.net` | Https 443 | OneLake writes, DFS, pipeline front-end |
+| `fabric-platform` | `*.fabric.microsoft.com`, `*.onelake.dfs.fabric.microsoft.com`, `*.onelake.blob.fabric.microsoft.com`, `*.pbidedicated.windows.net` | Https 443 | Fabric portal + OneLake |
+| `fabric-sql-tds` | `*.datawarehouse.fabric.microsoft.com`, `*.datawarehouse.pbidedicated.windows.net`, `*.datawarehouse.pbidedicated.microsoft.com`, `*.datamart.fabric.microsoft.com`, `*.datamart.pbidedicated.microsoft.com`, `*.pbidedicated.microsoft.com`, `*.pbidedicated.windows.net`, `*.database.fabric.microsoft.com`, `*.cloudapp.azure.com` | Mssql 1433 | Fabric DW / Datamart / staging lakehouse (TDS) |
+| `certificate-revocation` | `oneocsp.microsoft.com`, `ocsp.digicert.com`, `crl3.digicert.com`, `crl4.digicert.com`, `cacerts.digicert.com`, `www.microsoft.com`, `crl.microsoft.com`, `ctldl.windowsupdate.com` | Http 80, Https 443 | CRL / OCSP checks (often missing from docs) |
+
+### Management-plane rules — `management-plane` (priority 150, Allow)
+
+Only required when the **management/runner** host egress is also forced through
+the firewall (so Terraform/az keep working). Map these to the management path,
+not the OPDG workload, in production.
+
+| Rule | FQDNs | Protocol/Port | Purpose |
+|---|---|---|---|
+| `runner-arm-storage` | `management.azure.com`, `management.core.windows.net`, `*.blob.core.windows.net`, `login.microsoftonline.com`, `login.windows.net` | Https 443 | ARM control plane + storage data plane |
+
+### Default deny (discovery instrument) — `opdg-deny-log` (priority 300, Deny)
+
+| Rule | FQDNs | Protocol/Port | Purpose |
+|---|---|---|---|
+| `deny-all-web-log` | `*` | Http 80, Https 443 | Log every web FQDN not explicitly allowed; becomes the production default-deny |
+
+### Validation notes
+
+- **HTTPS-only mode confirmed.** The gateway app *Network ports test* connected
+  to every Azure Relay server on **TCP 443 only** (no AMQP 5671-5672 / 9350-9354).
+  With HTTPS mode enforced, the `gateway-core` `*.servicebus.windows.net` rule on
+  443 is sufficient; the AMQP ports can be omitted. The ports test is the
+  authoritative per-gateway, per-region endpoint list.
+- **Confirmed by firewall logs.** With all OPDG egress routed through the hub
+  firewall, `AZFWApplicationRule` showed `gateway-core` allowing
+  `*.servicebus.windows.net` and `fabric-workload` allowing
+  `*.frontend.clouddatahub.net` — a 76/76 ports-test pass through least-privilege
+  wildcard rules, no IPs or tags.
+- **Discovery:** remove any broad allow, run a gateway refresh, then read
+  `AZFWApplicationRule`/`AZFWNetworkRule` `Deny` entries to surface endpoints the
+  docs missed, and promote confirmed ones into the allow rules above.
+- **No inbound internet ports** are required by the OPDG.
+- OPDG↔SQL (TCP 1433) is on-premises-only and is **not** seen by the Azure
+  firewall; validate that port on the gateway host itself.
 
 ## Reference lab resume appendix
 

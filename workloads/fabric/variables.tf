@@ -54,6 +54,18 @@ variable "fabric_pe_subnet_prefix" {
   default     = "10.2.0.0/27"
 }
 
+variable "onprem_source_cidr" {
+  description = "On-premises address space. Return traffic to it is forced back through the hub firewall (symmetric inspection)."
+  type        = string
+  default     = "172.16.0.0/16"
+}
+
+variable "force_onprem_return_via_firewall" {
+  description = "Add a pe-subnet route (on-prem CIDR -> hub firewall) so PE->on-prem return traffic hairpins through the firewall instead of going direct to the VPN gateway."
+  type        = bool
+  default     = true
+}
+
 variable "fabric_capacity_sku" {
   description = "Microsoft Fabric capacity SKU (F2 is the smallest / cheapest)."
   type        = string

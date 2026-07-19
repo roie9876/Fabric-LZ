@@ -91,12 +91,31 @@ resource "azurerm_route" "default_to_firewall" {
   next_hop_in_ip_address = data.azurerm_firewall.hub.ip_configuration[0].private_ip_address
 }
 
+# Return-path override: force PE -> on-prem traffic back through the hub firewall.
+# Without this, BGP propagation on the pe-subnet route table teaches the on-prem
+# prefix via the VPN gateway (more specific than 0.0.0.0/0), so return traffic
+# bypasses the firewall and breaks symmetric inspection. An explicit UDR for the
+# on-prem CIDR wins over the BGP-learned route, hairpinning it through the firewall.
+resource "azurerm_route" "onprem_return_to_firewall" {
+  count                  = var.force_onprem_return_via_firewall ? 1 : 0
+  name                   = "onprem-to-firewall"
+  resource_group_name    = azurerm_resource_group.fabric.name
+  route_table_name       = azurerm_route_table.spoke.name
+  address_prefix         = var.onprem_source_cidr
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = data.azurerm_firewall.hub.ip_configuration[0].private_ip_address
+}
+
 resource "azurerm_subnet_route_table_association" "pe" {
   subnet_id      = azurerm_subnet.pe.id
   route_table_id = azurerm_route_table.spoke.id
 }
 
-# ---------- Hub <-> spoke peering (gateway transit so spoke reaches on-prem) ----------
+# ---------- Hub <-> spoke peering (firewall transit; VPN removed) ----------
+# On-prem was collapsed from S2S VPN to direct VNet peering with the hub, and the
+# hub firewall is the transit for on-prem <-> spoke. The spoke therefore no longer
+# needs the hub's VPN gateway (use_remote_gateways) — it reaches on-prem via the
+# firewall (pe-subnet route 172.16.0.0/16 -> firewall) and the hub via peering.
 resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   name                         = "fabric-spoke-to-hub"
   resource_group_name          = azurerm_resource_group.fabric.name
@@ -104,7 +123,7 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   remote_virtual_network_id    = data.azurerm_virtual_network.hub.id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
-  use_remote_gateways          = true
+  use_remote_gateways          = false
 }
 
 resource "azurerm_virtual_network_peering" "hub_to_spoke" {
@@ -114,7 +133,7 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
   remote_virtual_network_id    = azurerm_virtual_network.spoke.id
   allow_virtual_network_access = true
   allow_forwarded_traffic      = true
-  allow_gateway_transit        = true
+  allow_gateway_transit        = false
 }
 
 # ---------- Workspace-level Private Link DNS (linked to hub + spoke) ----------
