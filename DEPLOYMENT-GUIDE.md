@@ -105,6 +105,74 @@ in the tfvars file alone does not provide cross-subscription behavior.
 | **CHECK** | Named host | Read-only validation |
 | **STOP** | Operator decision | Do not continue until the stated evidence passes |
 
+## Execution modes: Terraform vs. manual
+
+This deployment is **mixed-mode**: some steps run **Terraform** (infrastructure
+as code, from the private runner) and some are **manual** actions in a portal
+(Azure, Microsoft Entra, or Microsoft Fabric) or on the on-premises hosts. Read
+the mode badge at the start of every step before you begin.
+
+- 🟦 **TERRAFORM** — run the documented `terraform` commands from the **RUNNER**.
+  Do **not** create these resources by hand in the portal.
+- 🟨 **MANUAL** — perform the steps yourself in a **PORTAL** / **API** / on a host
+  (**LAPTOP**, **RUNNER**, SQL/OPDG VM). Terraform does not do these.
+- ⬜ **PREP / VALIDATE** — one-time workstation prep or read-only checks
+  (**LAPTOP** / **CHECK**); no resources are created.
+
+### Mode at a glance
+
+| # | Step | Mode |
+|---|---|---|
+| 1 | Prepare the operator workstation | ⬜ PREP (LAPTOP) |
+| 2 | Establish private state + deploy Layer 1 | 🟦 TERRAFORM (RUNNER) |
+| 3 | Validate the customer network handoff | ⬜ VALIDATE (CHECK) |
+| 4 | Complete Fabric tenant prerequisites | 🟨 MANUAL (PORTAL) |
+| 5 | Terraform Phase A: Fabric foundation | 🟦 TERRAFORM (RUNNER) |
+| 6 | Create both Fabric workspaces | 🟨 MANUAL (PORTAL) |
+| 7 | Grant the runner workspace access | 🟨 MANUAL (PORTAL/API) |
+| 8 | Terraform Phase B: workspace Private Link | 🟦 TERRAFORM (RUNNER) |
+| 9 | Prepare the SQL Server and OPDG hosts | 🟦 TERRAFORM (RUNNER)* |
+| 10 | Phase 5: install and register OPDG | 🟨 MANUAL (OPDG host) |
+| 11 | Phase 6: private lakehouse + ingest SQL | 🟨 MANUAL (PORTAL) |
+| 12 | Phase 7: semantic model + report | 🟨 MANUAL (PORTAL) |
+| 13 | Phase 8: pre-lockdown validation | ⬜ VALIDATE (CHECK) |
+| 14 | Phase 9: restrict Workspace A | 🟨 MANUAL (PORTAL) |
+| 15 | Pause nonproduction resources | 🟨 MANUAL (PORTAL) |
+
+\* Step 9 uses Terraform only for the **lab** SQL/OPDG hosts. In a customer
+environment these are customer-owned production hosts (manual).
+
+```mermaid
+flowchart TD
+    S1["1. Prepare workstation<br/>⬜ PREP"] --> S2["2. Private state + Layer 1<br/>🟦 TERRAFORM"]
+    S2 --> S3["3. Validate network handoff<br/>⬜ VALIDATE"]
+    S3 --> S4["4. Fabric tenant prerequisites<br/>🟨 MANUAL portal"]
+    S4 --> S5["5. Phase A: Fabric foundation<br/>🟦 TERRAFORM"]
+    S5 --> S6["6. Create both workspaces<br/>🟨 MANUAL portal"]
+    S6 --> S7["7. Grant runner access<br/>🟨 MANUAL portal/API"]
+    S7 --> S8["8. Phase B: workspace Private Link<br/>🟦 TERRAFORM"]
+    S8 --> S9["9. Prepare SQL + OPDG hosts<br/>🟦 TERRAFORM lab / 🟨 MANUAL cust."]
+    S9 --> S10["10. Phase 5: install + register OPDG<br/>🟨 MANUAL host"]
+    S10 --> S11["11-15. Phase 6-9<br/>🟨 MANUAL portal"]
+
+    classDef tf fill:#e3f0ff,stroke:#2b6cb0,color:#1a365d;
+    classDef manual fill:#fff7e0,stroke:#b7791f,color:#744210;
+    classDef prep fill:#f0f0f0,stroke:#888,color:#333;
+    class S2,S5,S8 tf;
+    class S4,S6,S7,S10,S11 manual;
+    class S1,S3,S9 prep;
+```
+
+### About the reference screenshots in this guide
+
+> 📸 **Reference-only screenshots.** For each **🟦 TERRAFORM** step, this guide
+> embeds Azure portal screenshots under a *"Expected Terraform result"* heading.
+> **These are for verification only** — they show what the portal should look
+> like *after* the `terraform apply` succeeds, so you can confirm the result in a
+> customer environment. **Do not recreate these resources by hand**; Terraform
+> already builds them. Screenshots are from the reference lab
+> (`azr-sbx-lab-0001`, Israel Central); your names, IDs, and regions will differ.
+
 ## Required operator inputs
 
 Create an approved deployment worksheet before running commands. Never put
@@ -268,6 +336,8 @@ plan is saved, delete that plan and create a new one.
 
 ### 1. Prepare the operator workstation
 
+> **Mode: ⬜ PREP (LAPTOP)** — one-time workstation setup; no Azure resources created.
+
 **LAPTOP**
 
 ```bash
@@ -374,6 +444,10 @@ The current lab already has its private overlay and backend configuration. Do
 not overwrite them when resuming.
 
 ### 2. Establish private Terraform state and deploy Layer 1
+
+> **Mode: 🟦 TERRAFORM (RUNNER)** — infrastructure as code. Do not build these
+> resources by hand; see *Expected Terraform result* screenshots at the end of
+> this step to verify.
 
 #### 2.1 Customer-provided private backend
 
@@ -482,7 +556,49 @@ workbooks described in the architecture are not created by the starter root.
 **STOP:** the hub VNet, Azure Firewall, DNS Resolver, Log Analytics workspace,
 private state path, and customer hybrid path must all be healthy before Layer 2.
 
+#### Expected Terraform result (reference screenshots)
+
+> 📸 **Reference only — do not perform manually.** These show the expected Azure
+> portal state **after** `terraform apply` succeeds for Layer 1. Use them to
+> verify your customer deployment. Names/IDs/regions will differ from the lab.
+
+**Management groups** — the governance hierarchy (CAF-style `mgmt / workloads /
+monitor / sandbox` in production; the reference tenant shows its own tree).
+
+![Layer 1 — management groups](docs/deployment-reference/tf-layer1-01-management-groups.png)
+
+**Resource groups** — the Layer 1 resource groups, all in the target region.
+
+![Layer 1 — resource groups](docs/deployment-reference/tf-layer1-02-resource-groups.png)
+
+**Private Terraform state storage** — public network access **Disabled**, shared
+key access **Disabled**, a private endpoint connection, and versioning **Enabled**.
+
+![Layer 1 — tfstate storage account](docs/deployment-reference/tf-layer1-03-tfstate-storage.png)
+
+**Hub VNet subnets** — Firewall, Gateway, DNS inbound/outbound, egress, and PE subnets.
+
+![Layer 1 — hub VNet subnets](docs/deployment-reference/tf-layer1-04-hub-vnet-subnets.png)
+
+**Azure Firewall** — Standard SKU, private IP, attached Firewall Policy.
+
+![Layer 1 — Azure Firewall](docs/deployment-reference/tf-layer1-05-azure-firewall.png)
+
+**Firewall Policy** — Standard tier, attached to the hub firewall.
+
+![Layer 1 — Firewall Policy](docs/deployment-reference/tf-layer1-06-firewall-policy.png)
+
+**Private DNS Resolver** — one inbound and one outbound endpoint, Connected.
+
+![Layer 1 — Private DNS Resolver](docs/deployment-reference/tf-layer1-07-dns-resolver.png)
+
+**Central Log Analytics workspace** — Active, pay-as-you-go.
+
+![Layer 1 — Log Analytics](docs/deployment-reference/tf-layer1-08-log-analytics.png)
+
 ### 3. Validate the customer network handoff
+
+> **Mode: ⬜ VALIDATE (CHECK)** — read-only connectivity checks; no resources created.
 
 The network team must provide the hub VNet/resource group, Azure Firewall
 private IP, DNS Resolver inbound IP, on-premises SQL/OPDG subnets, hybrid route
@@ -523,6 +639,9 @@ tests.
 off routing, DNS, and egress.
 
 ### 4. Complete Fabric tenant prerequisites
+
+> **Mode: 🟨 MANUAL (PORTAL)** — perform these steps yourself in Microsoft Entra
+> and the Fabric admin portal. Terraform does not do these.
 
 Skip this section when resuming the current lab; it is complete.
 
@@ -584,6 +703,10 @@ not reuse these reference screenshots as proof of the customer change.
 refresh, and the provider must report `Registered`.
 
 ### 5. Terraform Phase A: Fabric foundation
+
+> **Mode: 🟦 TERRAFORM (RUNNER)** — infrastructure as code. Do not build these
+> resources by hand; see *Expected Terraform result* screenshots at the end of
+> this step to verify.
 
 Skip this section when resuming the current lab; it is complete and had no
 drift before shutdown.
@@ -648,7 +771,35 @@ gateways. Do not disable gateway transit merely to make Terraform apply.
 
 **STOP:** all checks must pass and the post-apply plan must return `0`.
 
+#### Expected Terraform result (reference screenshots)
+
+> 📸 **Reference only — do not perform manually.** Expected Azure portal state
+> **after** Phase A `terraform apply` succeeds. Verify against your environment.
+
+**Fabric capacity** — Status **Active**, the approved SKU (lab uses F2).
+
+![Phase A — Fabric capacity](docs/deployment-reference/tf-phasea-01-fabric-capacity.png)
+
+**Fabric spoke VNet** — the `pe-subnet` with an attached NSG and route table.
+
+![Phase A — Fabric spoke VNet](docs/deployment-reference/tf-phasea-02-spoke-vnet-subnets.png)
+
+**Forced-tunnel route table** — a single route `0.0.0.0/0 → VirtualAppliance`
+(the hub Azure Firewall private IP).
+
+![Phase A — spoke route table](docs/deployment-reference/tf-phasea-03-route-table.png)
+
+**Spoke ↔ hub peering** — Fully Synchronized / Connected.
+
+![Phase A — spoke peering](docs/deployment-reference/tf-phasea-04-spoke-peerings.png)
+
+**`privatelink.fabric.microsoft.com` DNS zone** — linked to the hub and spoke VNets.
+
+![Phase A — Fabric private DNS zone](docs/deployment-reference/tf-phasea-05-fabric-dns-zone.png)
+
 ### 6. Create both Fabric workspaces
+
+> **Mode: 🟨 MANUAL (PORTAL)** — create the workspaces yourself in Microsoft Fabric.
 
 Skip this section when resuming the current lab; it is complete.
 
@@ -712,6 +863,8 @@ region, workspace administrators, and Conditional Access change/test evidence.
 after refresh. Workspace A and B must still allow public access at this stage.
 
 ### 7. Grant the runner Fabric workspace lifecycle access
+
+> **Mode: 🟨 MANUAL (PORTAL/API)** — assign workspace access yourself.
 
 Skip this section when resuming the current lab; it is complete.
 
@@ -781,6 +934,10 @@ read-back. Delete `/tmp/fabric-role-add.json`; never store the token.
 **STOP:** read-back must show the runner as Workspace A `Admin`.
 
 ### 8. Terraform Phase B: workspace Private Link
+
+> **Mode: 🟦 TERRAFORM (RUNNER)** — infrastructure as code. Do not build these
+> resources by hand; see *Expected Terraform result* screenshots at the end of
+> this step to verify.
 
 Skip this section when resuming the current lab; it is complete and had no
 drift before shutdown.
@@ -938,7 +1095,28 @@ resource under an approved rollback and regenerate the plan.
 approval, five-IP output, TCP 443, authenticated API, policy, or no-drift
 validation fails.
 
+#### Expected Terraform result (reference screenshots)
+
+> 📸 **Reference only — do not perform manually.** Expected Azure portal state
+> **after** Phase B `terraform apply` succeeds.
+
+**Workspace private endpoint** — target sub-resource **workspace**, connection
+status **Approved**, in the Fabric spoke `pe-subnet`.
+
+![Phase B — Fabric workspace private endpoint](docs/deployment-reference/tf-phaseb-01-fabric-private-endpoint.png)
+
+**Private endpoint DNS configuration** — the workspace FQDNs
+(`*.fabric.microsoft.com`) resolve to private spoke IPs via the
+`privatelink.fabric.microsoft.com` zone.
+
+![Phase B — PE DNS configuration](docs/deployment-reference/tf-phaseb-02-pe-dns-zone-group.png)
+
 ### 9. Prepare the customer SQL Server and OPDG hosts
+
+> **Mode: 🟦 TERRAFORM (RUNNER) for the lab / 🟨 MANUAL for customer prod** — the
+> `workloads/onprem-lab` root deploys the lab SQL + OPDG VMs. In a customer
+> environment these are customer-owned production hosts (not Terraform). See
+> *Expected Terraform result* screenshots at the end of this step.
 
 Choose exactly one path.
 
@@ -1000,8 +1178,28 @@ exit code `0`.
 Terraform stages the official gateway installer. It does not perform the
 user-authenticated gateway registration.
 
+#### Expected Terraform result (reference screenshots)
+
+> 📸 **Reference only — do not perform manually.** In the **lab**, the
+> `workloads/onprem-lab` root deploys these hosts. In a **customer** environment
+> the SQL Server and OPDG hosts are customer-owned production systems — these
+> screenshots then illustrate the expected shape, not a Terraform output.
+
+**On-premises simulation resource group** — the lab SQL VM, OPDG VM, runner VM,
+their NICs/NSGs/disks, VNet, and NAT.
+
+![On-prem lab — resource group](docs/deployment-reference/tf-onprem-01-resource-group.png)
+
+**Simulated on-prem SQL Server VM** — Windows Server, private IP on the on-prem
+VNet, tagged `purpose: fabric-hybrid-simulation`.
+
+![On-prem lab — SQL Server VM](docs/deployment-reference/tf-onprem-02-sql-vm.png)
+
 ### 10. Phase 5: install and register OPDG
 
+> **Mode: 🟨 MANUAL (OPDG host)** — install and register the gateway on the OPDG
+> Windows host. Terraform does not do this.
+>
 > **Reference lab status:** ✅ completed 2026-07-19. Gateway
 > `azr-sbx-lab-0001-opdg` is registered in **West US 3** (tenant home region) and
 > shows **Microsoft Fabric → Ready**. See the region gotcha below.
@@ -1128,6 +1326,8 @@ members must be healthy, and screenshots 09-11 must be approved.
 
 ### 11. Phase 6: create the private lakehouse and ingest SQL
 
+> **Mode: 🟨 MANUAL (PORTAL)** — build the lakehouse and copy pipeline yourself in Microsoft Fabric.
+
 **PORTAL: Workspace A**
 
 1. Open Workspace A and select **New item** > **Lakehouse**.
@@ -1183,6 +1383,8 @@ approval.
 
 ### 12. Phase 7: build the public semantic model and report
 
+> **Mode: 🟨 MANUAL (PORTAL)** — build the semantic model and report yourself in Microsoft Fabric.
+
 **PORTAL: Workspace B**
 
 This is a compatibility gate. Workspace-level Private Link support varies by
@@ -1228,6 +1430,8 @@ network policy to make an unsupported design appear to work.
 
 ### 13. Phase 8: final pre-lockdown validation
 
+> **Mode: ⬜ VALIDATE (CHECK)** — read-only end-to-end validation; no changes.
+
 **CHECK**
 
 - [ ] Five Workspace A FQDNs resolve from OPDG to the five addresses returned by
@@ -1251,6 +1455,8 @@ change record. This is the final go/no-go review.
 **STOP:** any failure keeps Workspace A public access enabled.
 
 ### 14. Phase 9: restrict Workspace A last
+
+> **Mode: 🟨 MANUAL (PORTAL)** — apply the final public-access restriction yourself in Microsoft Fabric.
 
 **PORTAL: Workspace A**
 
@@ -1300,6 +1506,8 @@ Workspace A access to fail, Workspace B to remain available under CA, and the
 restricted screenshot/evidence to be approved.
 
 ### 15. Pause nonproduction resources when idle
+
+> **Mode: 🟨 MANUAL (PORTAL)** — pause/resume capacity and stop lab VMs yourself.
 
 **LAPTOP**
 
