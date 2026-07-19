@@ -1002,7 +1002,9 @@ user-authenticated gateway registration.
 
 ### 10. Phase 5: install and register OPDG
 
-This is the **next action for the current lab**.
+> **Reference lab status:** ✅ completed 2026-07-19. Gateway
+> `azr-sbx-lab-0001-opdg` is registered in **West US 3** (tenant home region) and
+> shows **Microsoft Fabric → Ready**. See the region gotcha below.
 
 **OPDG VM interactive session**
 
@@ -1028,7 +1030,10 @@ Command cannot complete the organizational sign-in UI.
 7. Select **Register a new gateway on this computer**.
 8. Enter the approved **standard-mode** cluster name. The reference lab uses
   `azr-sbx-lab-0001-opdg`; use the customer naming standard in production.
-9. Confirm the gateway region aligns with the Fabric tenant/customer design.
+9. **Leave the region at the wizard's recommended value** — this is your Power
+   BI/Fabric tenant's default (home) region, which the gateway *must* use to be
+   usable by Fabric. Do **not** change it to match the capacity's Azure region.
+   See the region gotcha note below.
 10. Generate a strong recovery key using the approved secret process. Enter it
    in the installer and store it immediately in the customer secret manager.
    Microsoft cannot retrieve it. Never capture it in a screenshot.
@@ -1050,16 +1055,34 @@ Get-Service PBIEgwService | Format-List Name,Status,StartType
 Expected: service status `Running`. Repeat the gateway app network test after
 Firewall, proxy, or gateway-version changes.
 
-Required customer screenshots (pending in the reference deployment):
+Reference deployment screenshots (captured 2026-07-19):
 
-- `09-opdg-installer-complete.jpeg`
-- `10-opdg-cluster-registered.jpeg`
-- `11-opdg-cluster-online.jpeg`
+**Installation complete** — the installer reports success before registration.
 
-> **Screenshot status:** no screenshots 09-11 exist yet because Phase 5 has not
-> been executed. Capture the customer screens after the action, store them in
-> the approved evidence location, and embed sanitized copies in the customer
-> runbook. Never show the recovery key, password, token, or connection secret.
+![OPDG installer complete](workloads/fabric/images/09-opdg-installer-complete.jpeg)
+
+**Gateway online and Fabric-Ready** — after registration, the status panel must
+show **Microsoft Fabric → Ready** (see the region note below).
+
+![OPDG gateway online, Microsoft Fabric Ready](workloads/fabric/images/10-opdg-cluster-registered.jpeg)
+
+**Cluster online in Fabric** — the cluster appears under Fabric **Manage
+connections and gateways → On-premises data gateways** with an online status.
+
+![OPDG cluster online in Fabric](workloads/fabric/images/11-opdg-cluster-online.jpeg)
+
+> **⚠️ Region gotcha (important).** The gateway region must be your **Power BI /
+> Fabric tenant's default (home) region** — *not* the Azure region of your Fabric
+> capacity. In the reference lab the capacity is in **Israel Central**, but the
+> tenant home region is **West US 3**. Registering the gateway in Israel Central
+> produced **"Microsoft Fabric — Not available — Can't be used outside your
+> default environment"**, making the gateway unusable by the workspace. The fix is
+> to **uninstall and re-register the gateway, leaving the region at the
+> recommended (tenant-default) value** — here **West US 3**. Accept the wizard's
+> recommended region unless you have a specific reason not to.
+>
+> **Secret handling:** never show the recovery key, password, token, or connection
+> secret in any screenshot. The recovery-key fields above are masked by design.
 
 **Rollback:** before any data source uses the cluster, uninstall the failed
 member or remove it from the cluster under an approved change. Do not discard a
