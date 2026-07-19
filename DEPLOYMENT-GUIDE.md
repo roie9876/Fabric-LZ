@@ -1055,21 +1055,56 @@ Get-Service PBIEgwService | Format-List Name,Status,StartType
 Expected: service status `Running`. Repeat the gateway app network test after
 Firewall, proxy, or gateway-version changes.
 
-Reference deployment screenshots (captured 2026-07-19):
+Reference deployment screenshots — full step-by-step walkthrough (captured
+2026-07-19). The reference gateway is named **`azr-sbx-lab-0001-opdg-new`**
+(the plain `-opdg` name was already held by an earlier registration; pick an
+unused cluster name).
 
-**Installation complete** — the installer reports success before registration.
+**1. Accept the license terms**, keep the default install path, select Install.
 
-![OPDG installer complete](workloads/fabric/images/09-opdg-installer-complete.jpeg)
+![OPDG installer — accept terms](workloads/fabric/images/opdg-01-accept-terms.jpeg)
 
-**Gateway online and Fabric-Ready** — after registration, the status panel must
-show **Microsoft Fabric → Ready** (see the region note below).
+**2. Installation runs** (a minute or two).
 
-![OPDG gateway online, Microsoft Fabric Ready](workloads/fabric/images/10-opdg-cluster-registered.jpeg)
+![OPDG installing](workloads/fabric/images/opdg-02-installing.jpeg)
 
-**Cluster online in Fabric** — the cluster appears under Fabric **Manage
-connections and gateways → On-premises data gateways** with an online status.
+**3. Installation succeeds** — enter the administering email to register.
 
-![OPDG cluster online in Fabric](workloads/fabric/images/11-opdg-cluster-online.jpeg)
+![OPDG installation complete](workloads/fabric/images/opdg-03-install-complete.jpeg)
+
+**4. Sign in** with the approved organizational (work/school) account.
+
+![OPDG sign-in account](workloads/fabric/images/opdg-04-signin-account.jpeg)
+
+**5. Register a new gateway** on this computer.
+
+![OPDG register new gateway](workloads/fabric/images/opdg-05-register-new-gateway.jpeg)
+
+**6. Configure** the cluster name, **leave the recommended region** (here
+**West US 3** — the tenant home region), and enter the recovery key (masked;
+never screenshotted).
+
+![OPDG config name + region](workloads/fabric/images/opdg-06-config-name-region.jpeg)
+
+**7. Gateway online and Fabric-Ready** — the status panel must show
+**Microsoft Fabric → Ready** (see the region gotcha below).
+
+![OPDG online, Microsoft Fabric Ready](workloads/fabric/images/opdg-08-online-fabric-ready.jpeg)
+
+**8. Network — HTTPS mode** (recommended) routes gateway traffic via Azure
+Service Bus over HTTPS.
+
+![OPDG network HTTPS mode](workloads/fabric/images/opdg-09-network-https-mode.jpeg)
+
+**9. Service Settings** — the gateway runs as the `PBIEgwService` Windows
+service.
+
+![OPDG service settings](workloads/fabric/images/opdg-11-service-settings.jpeg)
+
+**10. Cluster online in Fabric** — the cluster appears under Fabric **Manage
+connections and gateways → On-premises data gateways** with status **Online**.
+
+![OPDG cluster online in Fabric](workloads/fabric/images/opdg-10-fabric-cluster-online.jpeg)
 
 > **⚠️ Region gotcha (important).** The gateway region must be your **Power BI /
 > Fabric tenant's default (home) region** — *not* the Azure region of your Fabric
