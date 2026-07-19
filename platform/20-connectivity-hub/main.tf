@@ -90,7 +90,8 @@ resource "azurerm_subnet" "dns_inbound" {
   delegation {
     name = "dns-resolver"
     service_delegation {
-      name = "Microsoft.Network/dnsResolvers"
+      name    = "Microsoft.Network/dnsResolvers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
 }
@@ -105,7 +106,8 @@ resource "azurerm_subnet" "dns_outbound" {
   delegation {
     name = "dns-resolver"
     service_delegation {
-      name = "Microsoft.Network/dnsResolvers"
+      name    = "Microsoft.Network/dnsResolvers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
 }
