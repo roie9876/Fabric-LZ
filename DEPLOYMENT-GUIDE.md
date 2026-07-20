@@ -664,6 +664,11 @@ Reference screenshot: Fabric Administrator role assignment.
 
 ![Fabric Administrator role assignment](workloads/fabric/images/fabric%20admin%20role%20in%20entra.jpeg)
 
+Completed role evidence — the operator has a direct, active, permanent
+**Fabric Administrator** assignment at tenant scope:
+
+![Fabric Administrator role effective](workloads/fabric/images/02-fabric-admin-role-effective.jpeg)
+
 **PORTAL: Microsoft Fabric**
 
 1. Open **Settings** > **Admin portal**.
@@ -1495,9 +1500,14 @@ capacity does not grant Workspace B network access to Workspace A.
 6. Build a table/visual that proves the expected rows, then **Save** the report
   to **Workspace B** (lab: `rpt_salesorders_public`). Verify it renders the rows
   in reading view.
-7. Open **Semantic model settings** > **Gateway and cloud connections**. Confirm
-  the **Cloud connections** section lists the SQL analytics endpoint data source
-  with a green check (bound), and that no on-premises gateway is required.
+7. Open **Semantic model settings** > **Gateway and cloud connections**.
+   - Before Workspace A lockdown, confirm the **Cloud connections** section
+     lists the SQL analytics endpoint data source with a green check.
+   - For post-lockdown refresh, enable **Gateway connections**, select the
+     running lab OPDG cluster (`azlab-gateway`), and map the source to
+     `sql-fabric-private-za2`. Follow
+     [`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md)
+     for the workspace-specific private SQL endpoint configuration.
 8. Under **Refresh** (or via the model's **Refresh now**), trigger a refresh.
   Open **Refresh history** and verify the run shows `Completed`. Import mode
   means Workspace B holds its own copy of the data, so the public report keeps
@@ -1506,9 +1516,15 @@ capacity does not grant Workspace B network access to Workspace A.
 **Screenshots (captured, 2026-07-20):**
 
 Semantic model cloud connection — the public model in Workspace B binds to
-Workspace A's SQL analytics endpoint as a cloud data source (no gateway, OAuth):
+Workspace A's SQL analytics endpoint as a cloud data source before lockdown:
 
 ![Public semantic model cloud connection](workloads/fabric/images/16-public-semantic-model-cloud-connection.jpeg)
+
+Post-lockdown gateway binding — **Gateway connections** is On, `azlab-gateway`
+is running, and the private SQL analytics endpoint maps to
+`sql-fabric-private-za2`:
+
+![Public semantic model bound to OPDG](workloads/fabric/images/16-public-semantic-model-gateway-binding.jpeg)
 
 Refresh history — Import refresh `Completed` (initial web-modeling load + a
 manual refresh):

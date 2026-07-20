@@ -600,7 +600,8 @@ workspace scenario.
 
 1. Create the semantic model in Workspace B.
 2. In semantic model settings, enable **Gateway connections**.
-3. Select `azr-sbx-lab-0001-opdg` and the approved SQL connection.
+3. Select the lab OPDG cluster (`azlab-gateway`) and the approved private SQL
+   connection (`sql-fabric-private-za2`).
 4. Refresh the model and create a report that displays the three orders.
 
 **Required screenshots:**
