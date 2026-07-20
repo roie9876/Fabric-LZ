@@ -1,13 +1,10 @@
 #!/usr/bin/env python3
 """Generate a polished, marketing-style SVG of the Fabric workspace-level
-Private Link topology, then it can be rasterized to PNG (macOS):
-
-    python3 scripts/gen-fabric-svg.py
-    qlmanage -t -s 3200 -o docs/images /tmp/fabric.svg   # or use the wrapper below
+Private Link topology, then rasterize with scripts/render-fabric-svg.sh (macOS).
 
 Official Microsoft Fabric item icons (docs/diagrams/icons/fabric) are embedded as
-base64 data URIs. Azure-side glyphs (user, lock, globe, shield, clients) are drawn
-inline so the file is fully self-contained.
+base64 data URIs. Azure-side glyphs (user, lock, globe, clients) are drawn inline
+so the file is fully self-contained.
 """
 import base64
 import html
@@ -20,7 +17,7 @@ OUT_SVG = ROOT / "docs" / "diagrams" / "05-fabric-private-link.svg"
 # ---- palette ----------------------------------------------------------------
 INK = "#20242b"
 GRAY = "#5b5f66"
-TEAL = "#117865"       # Fabric brand teal-green
+TEAL = "#117865"
 TEAL_TINT = "#eaf5f2"
 AZURE = "#0f6cbd"
 AZURE_TINT = "#eef6fc"
@@ -30,11 +27,16 @@ GREEN = "#1a7f37"
 CARD = "#ffffff"
 FRAME = "#f5f8fb"
 FRAME_BORDER = "#e3e9f0"
-FONT = "'Helvetica Neue','Segoe UI',Arial,sans-serif"
+# System font (San Francisco on macOS via system-ui) — closest to the Segoe UI look.
+FONT = "system-ui,-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif"
 
-W, H = 1600, 900
-SQ = 1600            # square canvas so macOS qlmanage doesn't center-crop the export
+W, H = 1600, 960
+SQ = 1600             # square canvas so macOS qlmanage doesn't center-crop the export
 YOFF = (SQ - H) // 2  # vertical centering offset for the design band
+
+MK = {AZURE: "Az", TEAL: "Te", GRAY: "Gy", RED: "Rd", GREEN: "Gn"}
+
+P = []
 
 
 def data_uri(svg_file: str) -> str:
@@ -46,206 +48,209 @@ def esc(s: str) -> str:
     return html.escape(s, quote=True)
 
 
-P = []  # svg body parts
-
-
-def rrect(x, y, w, h, r, fill, stroke="none", sw=1.5, shadow=False, dash=None, opacity=1.0):
+def rrect(x, y, w, h, r, fill, stroke="none", sw=1.5, shadow=False, dash=None):
     f = ' filter="url(#soft)"' if shadow else ""
     d = f' stroke-dasharray="{dash}"' if dash else ""
     P.append(
         f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{r}" ry="{r}" '
-        f'fill="{fill}" fill-opacity="{opacity}" stroke="{stroke}" stroke-width="{sw}"{d}{f}/>'
+        f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"{d}{f}/>'
     )
 
 
-def text(x, y, s, size=15, color=INK, weight="400", anchor="start", italic=False, spacing="0"):
+def text(x, y, s, size=15, color=INK, weight="400", anchor="start", italic=False):
     st = ' font-style="italic"' if italic else ""
     P.append(
-        f'<text x="{x}" y="{y}" font-family="{FONT}" font-size="{size}" '
-        f'font-weight="{weight}" fill="{color}" text-anchor="{anchor}" '
-        f'letter-spacing="{spacing}"{st}>{esc(s)}</text>'
+        f'<text x="{x}" y="{y}" font-size="{size}" font-weight="{weight}" '
+        f'fill="{color}" text-anchor="{anchor}"{st}>{esc(s)}</text>'
     )
 
 
 def fabric_icon(cx, top, size, svg_file, label):
-    x = cx - size / 2
-    P.append(f'<image x="{x}" y="{top}" width="{size}" height="{size}" href="{data_uri(svg_file)}"/>')
-    text(cx, top + size + 16, label, size=12.5, color=INK, weight="600", anchor="middle")
+    P.append(f'<image x="{cx - size/2}" y="{top}" width="{size}" height="{size}" href="{data_uri(svg_file)}"/>')
+    text(cx, top + size + 20, label, size=14, color=INK, weight="600", anchor="middle")
 
 
-def person_badge(cx, cy, s, color):
-    x, y = cx - s / 2, cy - s / 2
-    P.append(f'<rect x="{x}" y="{y}" width="{s}" height="{s}" rx="{s*0.22}" fill="url(#gAzure)" filter="url(#soft)"/>')
-    hr = s * 0.15
-    P.append(f'<circle cx="{cx}" cy="{cy - s*0.13}" r="{hr}" fill="#ffffff"/>')
-    P.append(
-        f'<path d="M {cx - s*0.24} {cy + s*0.28} '
-        f'a {s*0.24} {s*0.22} 0 0 1 {s*0.48} 0 Z" fill="#ffffff"/>'
-    )
+def person_badge(cx, cy, s):
+    P.append(f'<rect x="{cx-s/2}" y="{cy-s/2}" width="{s}" height="{s}" rx="{s*0.22}" fill="url(#gAzure)" filter="url(#soft)"/>')
+    P.append(f'<circle cx="{cx}" cy="{cy - s*0.13}" r="{s*0.15}" fill="#ffffff"/>')
+    P.append(f'<path d="M {cx - s*0.24} {cy + s*0.28} a {s*0.24} {s*0.22} 0 0 1 {s*0.48} 0 Z" fill="#ffffff"/>')
 
 
-def lock_badge(cx, cy, s, color):
-    x, y = cx - s / 2, cy - s / 2
-    P.append(f'<rect x="{x}" y="{y}" width="{s}" height="{s}" rx="{s*0.22}" fill="url(#gAzure)" filter="url(#soft)"/>')
+def lock_badge(cx, cy, s):
+    P.append(f'<rect x="{cx-s/2}" y="{cy-s/2}" width="{s}" height="{s}" rx="{s*0.22}" fill="url(#gAzure)" filter="url(#soft)"/>')
     bw, bh = s * 0.42, s * 0.30
     bx, by = cx - bw / 2, cy - bh * 0.15
     P.append(f'<rect x="{bx}" y="{by}" width="{bw}" height="{bh}" rx="{bh*0.22}" fill="#ffffff"/>')
     r = s * 0.15
-    P.append(
-        f'<path d="M {cx - r} {by} v {-r*0.2} a {r} {r} 0 0 1 {2*r} 0 v {r*0.2}" '
-        f'fill="none" stroke="#ffffff" stroke-width="{s*0.07}"/>'
-    )
+    P.append(f'<path d="M {cx - r} {by} v {-r*0.2} a {r} {r} 0 0 1 {2*r} 0 v {r*0.2}" fill="none" stroke="#ffffff" stroke-width="{s*0.07}"/>')
     P.append(f'<circle cx="{cx}" cy="{by + bh*0.5}" r="{s*0.05}" fill="{AZURE}"/>')
-
-
-def shield_badge(cx, cy, s, color):
-    x, y = cx - s / 2, cy - s / 2
-    P.append(f'<rect x="{x}" y="{y}" width="{s}" height="{s}" rx="{s*0.22}" fill="url(#gTeal)" filter="url(#soft)"/>')
-    P.append(
-        f'<path d="M {cx} {cy - s*0.28} L {cx + s*0.22} {cy - s*0.16} '
-        f'V {cy + s*0.06} Q {cx + s*0.22} {cy + s*0.24} {cx} {cy + s*0.30} '
-        f'Q {cx - s*0.22} {cy + s*0.24} {cx - s*0.22} {cy + s*0.06} '
-        f'V {cy - s*0.16} Z" fill="#ffffff"/>'
-    )
-    P.append(
-        f'<path d="M {cx - s*0.09} {cy + s*0.01} l {s*0.07} {s*0.07} l {s*0.13} {-s*0.14}" '
-        f'fill="none" stroke="{TEAL}" stroke-width="{s*0.05}" stroke-linecap="round" stroke-linejoin="round"/>'
-    )
 
 
 def globe(cx, cy, r):
     P.append(f'<circle cx="{cx}" cy="{cy}" r="{r}" fill="url(#gGlobe)" stroke="{RED}" stroke-width="2"/>')
-    P.append(f'<line x1="{cx-r}" y1="{cy}" x2="{cx+r}" y2="{cy}" stroke="#ffffff" stroke-width="1.4" opacity="0.9"/>')
-    P.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{r*0.45}" ry="{r}" fill="none" stroke="#ffffff" stroke-width="1.4" opacity="0.9"/>')
-    P.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{r}" ry="{r*0.45}" fill="none" stroke="#ffffff" stroke-width="1.4" opacity="0.5"/>')
+    P.append(f'<line x1="{cx-r}" y1="{cy}" x2="{cx+r}" y2="{cy}" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>')
+    P.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{r*0.45}" ry="{r}" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.9"/>')
+    P.append(f'<ellipse cx="{cx}" cy="{cy}" rx="{r}" ry="{r*0.45}" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.5"/>')
 
 
-def arrow(x1, y1, x2, y2, color, width=2.5, dash=None, marker="end", opacity=1.0):
-    mk = {AZURE: "Az", TEAL: "Te", GRAY: "Gy", RED: "Gy", GREEN: "Gy"}.get(color, "Gy")
+def arrow(x1, y1, x2, y2, color, width=2.5, dash=None, marker="end"):
+    mk = MK.get(color, "Gy")
     d = f' stroke-dasharray="{dash}"' if dash else ""
     me = f' marker-end="url(#mk{mk})"' if marker in ("end", "both") else ""
     ms = f' marker-start="url(#mkS{mk})"' if marker == "both" else ""
     P.append(
         f'<path d="M {x1} {y1} L {x2} {y2}" fill="none" stroke="{color}" '
-        f'stroke-width="{width}" stroke-linecap="round"{d} opacity="{opacity}"{me}{ms}/>'
+        f'stroke-width="{width}" stroke-linecap="round"{d}{me}{ms}/>'
     )
 
 
-# ---- background + defs -------------------------------------------------------
-# (background is emitted in the assembly step so it fills the square canvas)
+def opath(points, color, width=2.4, dash=None, marker="none"):
+    mk = MK.get(color, "Gy")
+    d = f' stroke-dasharray="{dash}"' if dash else ""
+    me = f' marker-end="url(#mk{mk})"' if marker == "end" else ""
+    dd = "M " + " L ".join(f"{x} {y}" for x, y in points)
+    P.append(f'<path d="{dd}" fill="none" stroke="{color}" stroke-width="{width}" '
+             f'stroke-linejoin="round" stroke-linecap="round"{d}{me}/>')
 
-# ---- title ------------------------------------------------------------------
-text(64, 74, "Workspace Private Link for Fabric", size=40, color=INK, weight="700")
-text(66, 114, "Perimeter network security for your workspace", size=21, color=TEAL, weight="600")
 
-# ---- outer frame ------------------------------------------------------------
-rrect(48, 150, 1504, 560, 22, FRAME, FRAME_BORDER, 1.5)
+def g_people(cx, cy, s):
+    for dx in (-s * 0.17, s * 0.17):
+        P.append(f'<circle cx="{cx+dx}" cy="{cy-s*0.16}" r="{s*0.15}" fill="{AZURE}"/>')
+        P.append(f'<path d="M {cx+dx-s*0.25} {cy+s*0.30} a {s*0.25} {s*0.23} 0 0 1 {s*0.50} 0 Z" fill="{AZURE}"/>')
 
-# ---- left: sources ----------------------------------------------------------
-rrect(96, 196, 132, 42, 10, "#f3f2f1", "#c8c6c4", 1.5, shadow=True)
-text(162, 222, "On-prem", size=14, weight="600", anchor="middle")
-rrect(244, 196, 132, 42, 10, "#f3f2f1", "#c8c6c4", 1.5, shadow=True)
-text(310, 222, "Azure VNets", size=14, weight="600", anchor="middle")
 
-# peering arrows down into customer vnet
-arrow(162, 240, 162, 292, AZURE, 2.2, dash="5 4")
-text(150, 268, "VNet peering", size=11, color=AZURE, anchor="end", weight="600")
-arrow(310, 240, 310, 292, AZURE, 2.2, dash="5 4")
-text(322, 268, "Peering", size=11, color=AZURE, weight="600")
+def g_wifi(cx, cy, s):
+    for rr in (s * 0.44, s * 0.30, s * 0.16):
+        P.append(f'<path d="M {cx-rr} {cy+s*0.12} A {rr} {rr} 0 0 1 {cx+rr} {cy+s*0.12}" '
+                 f'fill="none" stroke="{AZURE}" stroke-width="3" stroke-linecap="round"/>')
+    P.append(f'<circle cx="{cx}" cy="{cy+s*0.18}" r="{s*0.07}" fill="{AZURE}"/>')
 
-# customer vnet dashed box
-rrect(96, 292, 300, 260, 16, "#eef4fb", "#7f9fca", 1.8, dash="9 7")
-text(116, 320, "Customer VNet1  (Fabric spoke)", size=13.5, color="#3a4f6b", weight="700")
-person_badge(176, 402, 60, AZURE)
-text(176, 452, "User", size=12.5, weight="600", anchor="middle")
-lock_badge(316, 402, 60, AZURE)
-text(316, 452, "Private Endpoint", size=12.5, weight="600", anchor="middle")
-rrect(150, 486, 196, 40, 8, "#ffffff", "#c7d6ea", 1.4)
-text(248, 511, "pe-subnet", size=12, color=GRAY, weight="600", anchor="middle")
 
-# ---- private link arrow into Fabric ----------------------------------------
-arrow(396, 402, 486, 402, AZURE, 3.4)
-rrect(360, 372, 168, 38, 7, "#ffffff", "none", 0)
-text(441, 384, "Azure Private Link", size=12.5, color=AZURE, weight="700", anchor="middle")
-text(441, 400, "(Workspace Level)", size=11.5, color=AZURE, weight="600", anchor="middle")
+def g_laptop(cx, cy, s):
+    P.append(f'<rect x="{cx-s*0.32}" y="{cy-s*0.26}" width="{s*0.64}" height="{s*0.40}" rx="{s*0.05}" fill="{AZURE}"/>')
+    P.append(f'<rect x="{cx-s*0.28}" y="{cy-s*0.22}" width="{s*0.56}" height="{s*0.32}" fill="#ffffff"/>')
+    P.append(f'<path d="M {cx-s*0.44} {cy+s*0.24} L {cx+s*0.44} {cy+s*0.24} L {cx+s*0.33} {cy+s*0.14} L {cx-s*0.33} {cy+s*0.14} Z" fill="{AZURE}"/>')
 
-# ---- Fabric tenant panel ----------------------------------------------------
-rrect(492, 190, 872, 400, 20, TEAL_TINT, TEAL, 2.0, shadow=True)
-P.append(f'<image x="514" y="206" width="30" height="30" href="{data_uri("fabric_20_color.svg")}"/>')
-text(554, 228, "Fabric Tenant", size=19, color=TEAL, weight="700")
 
-# workspace A (private)
-rrect(516, 254, 396, 300, 14, CARD, "#e4e9ef", 1.4, shadow=True)
-text(536, 284, "Workspace A", size=15.5, weight="700")
-text(536, 304, "Private — public access Disabled", size=11.5, color=GRAY, weight="600")
-fabric_icon(576, 322, 52, "lakehouse_64_item.svg", "Lakehouse")
-fabric_icon(714, 322, 46, "data_warehouse_32_item.svg", "Warehouse")
-fabric_icon(852, 322, 52, "notebook_64_item.svg", "Notebook")
-fabric_icon(576, 440, 46, "one_lake_24_color.svg", "OneLake")
-fabric_icon(760, 440, 46, "spark_job_direction_32_item.svg", "Spark Job Def.")
+def g_phone(cx, cy, s):
+    P.append(f'<rect x="{cx-s*0.19}" y="{cy-s*0.33}" width="{s*0.38}" height="{s*0.66}" rx="{s*0.08}" fill="{AZURE}"/>')
+    P.append(f'<rect x="{cx-s*0.15}" y="{cy-s*0.25}" width="{s*0.30}" height="{s*0.44}" fill="#ffffff"/>')
+    P.append(f'<circle cx="{cx}" cy="{cy+s*0.25}" r="{s*0.045}" fill="#ffffff"/>')
 
-# workspace B (public)
-rrect(944, 254, 396, 300, 14, CARD, "#e4e9ef", 1.4, shadow=True)
-text(964, 284, "Workspace B", size=15.5, weight="700")
-text(964, 304, "Public — via Entra Conditional Access", size=11.5, color=GRAY, weight="600")
-fabric_icon(1024, 328, 44, "semantic_model_20_item.svg", "Semantic Model")
-fabric_icon(1236, 328, 44, "report_20_item.svg", "Report")
-fabric_icon(1024, 446, 46, "pipeline_48_item.svg", "Pipeline")
-fabric_icon(1236, 446, 46, "kql_database_48_item.svg", "KQL Database")
 
-# private data access between the two cards
-arrow(912, 404, 944, 404, TEAL, 2.4, dash="4 4", marker="both")
-text(928, 356, "Private", size=11, color=TEAL, weight="700", anchor="middle")
-text(928, 370, "Data", size=11, color=TEAL, weight="700", anchor="middle")
-text(928, 384, "Access", size=11, color=TEAL, weight="700", anchor="middle")
+# ============================ layout =========================================
+# ---- title ----
+text(64, 78, "Workspace Private Link for Fabric", size=42, color=INK, weight="700")
+text(66, 120, "Perimeter network security for your workspace", size=22, color=TEAL, weight="600")
 
-# ---- right: Entra CA + clients ---------------------------------------------
-shield_badge(1454, 300, 60, TEAL)
-text(1454, 352, "Entra Conditional", size=12.5, weight="700", anchor="middle")
-text(1454, 368, "Access (Tenant)", size=12.5, weight="700", anchor="middle")
-person_badge(1454, 452, 56, AZURE)
-text(1454, 500, "Portal / API users", size=12, color=GRAY, weight="600", anchor="middle")
-arrow(1424, 300, 1340, 320, GRAY, 2.2)
-arrow(1454, 424, 1454, 348, GRAY, 2.2)
+# ---- outer frame ----
+rrect(48, 156, 1504, 652, 24, FRAME, FRAME_BORDER, 1.5)
 
-# ---- public access globe ----------------------------------------------------
-globe(928, 646, 34)
-text(928, 704, "Public Access", size=13, color=RED, weight="700", anchor="middle")
-# A -> globe disabled
-arrow(700, 556, 902, 636, RED, 2.2, dash="6 5", marker="none")
-rrect(724, 590, 132, 22, 6, "#ffffff", "none", 0)
-text(742, 605, "\u2715  Disabled", size=12.5, color=RED, weight="700")
-# B -> globe enabled
-arrow(1142, 556, 956, 636, GREEN, 2.2, dash="6 5", marker="none")
-rrect(1002, 590, 262, 22, 6, "#ffffff", "none", 0)
-text(1010, 605, "\u2713  Enabled (with Entra CA)", size=12.5, color=GREEN, weight="700", anchor="start")
+# ---- sources ----
+rrect(104, 206, 150, 50, 12, "#f3f2f1", "#c8c6c4", 1.5, shadow=True)
+text(179, 238, "On-prem", size=16, weight="600", anchor="middle")
+rrect(274, 206, 150, 50, 12, "#f3f2f1", "#c8c6c4", 1.5, shadow=True)
+text(349, 238, "Azure VNets", size=16, weight="600", anchor="middle")
+arrow(179, 258, 179, 320, AZURE, 2.4, dash="5 4")
+text(168, 294, "VNet peering", size=12.5, color=AZURE, anchor="end", weight="600")
+arrow(349, 258, 349, 320, AZURE, 2.4, dash="5 4")
+text(361, 294, "Peering", size=12.5, color=AZURE, weight="600")
 
-# ---- bottom caption bars ----------------------------------------------------
+# ---- customer vnet ----
+rrect(104, 326, 326, 326, 18, "#eef4fb", "#7f9fca", 1.8, dash="9 7")
+text(128, 360, "Customer VNet1  (Fabric spoke)", size=15, color="#3a4f6b", weight="700")
+person_badge(192, 448, 74)
+text(192, 508, "User", size=14.5, weight="600", anchor="middle")
+lock_badge(348, 448, 74)
+text(348, 508, "Private Endpoint", size=14.5, weight="600", anchor="middle")
+rrect(168, 586, 222, 48, 10, "#ffffff", "#c7d6ea", 1.4)
+text(279, 616, "pe-subnet", size=14, color=GRAY, weight="600", anchor="middle")
+
+# ---- private link into Fabric (label stacked to fit the narrow gap) ----
+text(469, 400, "Azure", size=12.5, color=AZURE, weight="700", anchor="middle")
+text(469, 417, "Private Link", size=12.5, color=AZURE, weight="700", anchor="middle")
+text(469, 434, "(Workspace", size=11.5, color=AZURE, weight="600", anchor="middle")
+text(469, 449, "Level)", size=11.5, color=AZURE, weight="600", anchor="middle")
+arrow(390, 468, 508, 468, AZURE, 4.2)
+
+# ---- Fabric tenant panel ----
+rrect(510, 202, 872, 470, 22, TEAL_TINT, TEAL, 2.0, shadow=True)
+P.append(f'<image x="542" y="216" width="38" height="38" href="{data_uri("fabric_20_color.svg")}"/>')
+text(592, 246, "Fabric Tenant", size=25, color=TEAL, weight="700")
+
+# ---- workspace A (private) ----
+rrect(534, 274, 392, 356, 16, CARD, "#e4e9ef", 1.4, shadow=True)
+text(560, 312, "Workspace A", size=20, weight="700")
+text(560, 336, "Private \u2014 public access Disabled", size=13.5, color=GRAY, weight="600")
+fabric_icon(604, 360, 64, "lakehouse_64_item.svg", "Lakehouse")
+fabric_icon(730, 364, 58, "data_warehouse_32_item.svg", "Warehouse")
+fabric_icon(856, 362, 62, "notebook_64_item.svg", "Notebook")
+fabric_icon(612, 494, 58, "one_lake_24_color.svg", "OneLake")
+fabric_icon(788, 494, 58, "spark_job_direction_32_item.svg", "Spark Job Def.")
+
+# ---- workspace B (public) ----
+rrect(966, 274, 392, 356, 16, CARD, "#e4e9ef", 1.4, shadow=True)
+text(992, 312, "Workspace B", size=20, weight="700")
+text(992, 336, "Public \u2014 via Entra Conditional Access", size=13.5, color=GRAY, weight="600")
+fabric_icon(1056, 366, 54, "semantic_model_20_item.svg", "Semantic Model")
+fabric_icon(1264, 366, 54, "report_20_item.svg", "Report")
+fabric_icon(1056, 496, 58, "pipeline_48_item.svg", "Pipeline")
+fabric_icon(1264, 496, 58, "kql_database_48_item.svg", "KQL Database")
+
+# ---- private data access (one-way: private A -> public B) ----
+text(946, 404, "Private", size=12, color=TEAL, weight="700", anchor="middle")
+text(946, 420, "Data", size=12, color=TEAL, weight="700", anchor="middle")
+text(946, 436, "Access", size=12, color=TEAL, weight="700", anchor="middle")
+arrow(926, 470, 966, 470, TEAL, 3.0, marker="end")
+
+# ---- public access ----
+globe(946, 712, 40)
+text(946, 772, "Public Access", size=15, color=RED, weight="700", anchor="middle")
+# A: disabled (arrow up into Workspace A)
+opath([(906, 694), (726, 694), (726, 632)], RED, 2.6, dash="7 5", marker="end")
+rrect(738, 682, 128, 26, 7, "#ffffff", "none", 0)
+text(752, 700, "\u2715  Disabled", size=14, color=RED, weight="700")
+# B: enabled (arrow up into Workspace B)
+opath([(986, 694), (1166, 694), (1166, 632)], GREEN, 2.6, dash="7 5", marker="end")
+rrect(1000, 682, 268, 26, 7, "#ffffff", "none", 0)
+text(1014, 700, "\u2713  Enabled (with Entra CA)", size=14, color=GREEN, weight="700")
+
+# ---- right: Entra Conditional Access + client devices ----
+text(1462, 300, "Entra Conditional", size=13.5, color=INK, weight="700", anchor="middle")
+text(1462, 318, "Access Policies", size=13.5, color=INK, weight="700", anchor="middle")
+text(1462, 336, "(Tenant Level)", size=12.5, color=GRAY, weight="600", anchor="middle")
+person_badge(1430, 436, 62)
+text(1430, 494, "Portal / API", size=13, color=GRAY, weight="600", anchor="middle")
+text(1430, 510, "users", size=13, color=GRAY, weight="600", anchor="middle")
+_clients = [(384, g_people), (448, g_wifi), (512, g_laptop), (576, g_phone)]
+for cy, fn in _clients:
+    fn(1524, cy, 34)
+    arrow(1466, 436, 1506, cy, GRAY, 1.8, dash="4 4", marker="none")
+
+# ---- bottom caption cards ----
 caps = [
     "Selected workspaces are protected with Private Links and closed from the public internet.",
     "A secure link between public and private workspaces uses private data access.",
     "Public workspaces are secured through Entra Conditional Access policies (e.g. Power BI).",
 ]
-cx = 48
 cw = (1504 - 2 * 24) / 3
 for i, c in enumerate(caps):
-    bx = cx + i * (cw + 24)
-    rrect(bx, 742, cw, 96, 14, AZURE_TINT, AZURE_LINE, 1.4)
-    # simple word-wrap into <= 3 lines
+    bx = 48 + i * (cw + 24)
+    rrect(bx, 840, cw, 96, 16, AZURE_TINT, AZURE_LINE, 1.4)
     words, line, lines = c.split(), "", []
     for w in words:
-        if len(line) + len(w) + 1 > 46:
+        if len(line) + len(w) + 1 > 42:
             lines.append(line)
             line = w
         else:
             line = (line + " " + w).strip()
     lines.append(line)
-    ty = 742 + 96 / 2 - (len(lines) - 1) * 11 + 5
+    ty = 840 + 96 / 2 - (len(lines) - 1) * 12 + 6
     for ln in lines:
-        text(bx + cw / 2, ty, ln, size=13, color="#254a68", weight="600", anchor="middle")
-        ty += 22
+        text(bx + cw / 2, ty, ln, size=15, color="#254a68", weight="600", anchor="middle")
+        ty += 24
 
-# ---- assemble ---------------------------------------------------------------
+# ============================ assemble =======================================
 defs = f'''<defs>
   <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
     <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#0b1a2b" flood-opacity="0.14"/>
@@ -253,16 +258,14 @@ defs = f'''<defs>
   <linearGradient id="gAzure" x1="0" y1="0" x2="0" y2="1">
     <stop offset="0" stop-color="#2a8fe0"/><stop offset="1" stop-color="#0f6cbd"/>
   </linearGradient>
-  <linearGradient id="gTeal" x1="0" y1="0" x2="0" y2="1">
-    <stop offset="0" stop-color="#1a9e86"/><stop offset="1" stop-color="#117865"/>
-  </linearGradient>
   <radialGradient id="gGlobe" cx="0.35" cy="0.30" r="0.85">
     <stop offset="0" stop-color="#5aa9e6"/><stop offset="1" stop-color="#2a6db0"/>
   </radialGradient>
   <marker id="mkAz" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0f6cbd"/></marker>
   <marker id="mkTe" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#117865"/></marker>
   <marker id="mkGy" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b5f66"/></marker>
-  <marker id="mkSTe" viewBox="0 0 10 10" refX="1.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M10 0L0 5L10 10z" fill="#117865"/></marker>
+  <marker id="mkRd" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#c1272d"/></marker>
+  <marker id="mkGn" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker>
 </defs>'''
 
 svg = (
