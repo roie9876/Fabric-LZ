@@ -1430,32 +1430,58 @@ Fabric item and connection mode. Confirm the selected semantic-model pattern is
 supported in the customer's tenant before committing to it. Sharing an F
 capacity does not grant Workspace B network access to Workspace A.
 
-1. Obtain Workspace A's SQL analytics endpoint from the Lakehouse settings.
-  For private warehouse/SQL connectivity, use the workspace-specific private
-  connection string documented by Fabric, including the `z<first-two-workspace
-  ID characters>` component. Do not assume the public connection string will
-  resolve privately.
-2. In Workspace B, select **New item** > **Semantic model** or open the approved
-  Power BI authoring workflow.
-3. Select **Import** or **DirectQuery** according to the approved design. Direct
-  Lake is not the fallback for an unsupported restricted-workspace path.
-4. Add the source table and define relationships/measures needed by the report.
-5. Save the semantic model in Workspace B.
-6. Open **Semantic model settings** > **Gateway and cloud connections**.
-7. Bind the model to the approved OPDG/SQL connection. Verify the mapping shows
-  `Running`/available and no credential warning.
-8. Select **Refresh now**. Open **Refresh history** and verify `Completed`.
-9. Create a report in Workspace B, add a table/visual that proves the expected
-  source rows, save it, and reopen it in the service.
+1. Obtain Workspace A's SQL analytics endpoint from the Lakehouse settings
+  (Lakehouse > **Settings** > **SQL analytics endpoint** > copy the connection
+  string, e.g. `<hash>.datawarehouse.fabric.microsoft.com`). The endpoint's
+  database name equals the lakehouse name (`lh_onprem_private` in the lab).
+2. In Workspace B, select **New item** > **Semantic model** (or **Report** >
+  **Get data**). Choose **Get Data** > **SQL Server database**.
+3. Enter the SQL analytics endpoint as **Server** and the lakehouse name as
+  **Database**. Leave **Data gateway** = `(none)` — a Fabric SQL analytics
+  endpoint is a cloud data source and does not use the OPDG. Set
+  **Authentication kind** = **Organizational account** (Entra/OAuth); the
+  signed-in Fabric user authenticates. Do not use Basic/SQL auth here.
+4. Select **Next**, choose the source table (`dbo.SalesOrders`), confirm the
+  preview shows the expected rows, then **Transform data** > **Create a report**
+  (Import). This creates the semantic model and report in Workspace B.
+5. Name the semantic model (lab: `sm_salesorders_public`) and confirm the target
+  workspace is **Workspace B (public)**. Select **Create**.
+6. Build a table/visual that proves the expected rows, then **Save** the report
+  to **Workspace B** (lab: `rpt_salesorders_public`). Verify it renders the rows
+  in reading view.
+7. Open **Semantic model settings** > **Gateway and cloud connections**. Confirm
+  the **Cloud connections** section lists the SQL analytics endpoint data source
+  with a green check (bound), and that no on-premises gateway is required.
+8. Under **Refresh** (or via the model's **Refresh now**), trigger a refresh.
+  Open **Refresh history** and verify the run shows `Completed`. Import mode
+  means Workspace B holds its own copy of the data, so the public report keeps
+  working after Workspace A is locked down in Phase 9.
 
-Required customer screenshots (pending):
+**Screenshots (captured, 2026-07-20):**
 
-- `16-public-semantic-model-gateway-binding.jpeg`
-- `17-public-semantic-model-refresh-succeeded.jpeg`
-- `18-public-report-salesorders.jpeg`
+Semantic model cloud connection — the public model in Workspace B binds to
+Workspace A's SQL analytics endpoint as a cloud data source (no gateway, OAuth):
 
-> **Screenshot status:** no screenshots 16-18 exist yet. Capture the final
-> binding, refresh history, and report without exposing connection secrets.
+![Public semantic model cloud connection](workloads/fabric/images/16-public-semantic-model-cloud-connection.jpeg)
+
+Refresh history — Import refresh `Completed` (initial web-modeling load + a
+manual refresh):
+
+![Public semantic model refresh succeeded](workloads/fabric/images/17-public-semantic-model-refresh-succeeded.jpeg)
+
+Public report in Workspace B rendering the SalesOrders rows read from the
+private lakehouse (Adventure Works 2,199.99 / Contoso Retail 1,250.00 /
+Fabrikam Stores 875.50; total 4,325.49):
+
+![Public report SalesOrders](workloads/fabric/images/18-public-report-salesorders.jpeg)
+
+> **Design note (Import vs DirectQuery):** the lab uses **Import** so Workspace B
+> caches the data and does not need live network access to Workspace A after
+> refresh — this is what lets Workspace A be restricted to private access in
+> Phase 9. If the customer requires **DirectQuery** to a restricted Workspace A,
+> that is the compatibility gate: confirm workspace-level Private Link is
+> supported for the chosen connection mode before committing. Direct Lake is not
+> the fallback for an unsupported restricted-workspace path.
 
 Record semantic model ID, report ID, connection mapping, refresh ID, refresh
 time, mode, and row count.
@@ -1464,7 +1490,7 @@ If the chosen item or connection mode is unsupported with workspace-level
 Private Link, stop and return to architecture review. Do not weaken Workspace A
 network policy to make an unsupported design appear to work.
 
-**STOP:** gateway binding and refresh must succeed before lockdown.
+**STOP:** connection binding and refresh must succeed before lockdown.
 
 ### 13. Phase 8: final pre-lockdown validation
 
