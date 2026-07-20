@@ -32,3 +32,33 @@ remains public and is protected with Entra Conditional Access.
 - Requires the Fabric tenant setting **Configure workspace-level inbound network
   rules** before public access can be denied.
 - Requires both workspaces to be assigned to an F SKU capacity.
+
+## Known behaviors after locking down the private workspace
+
+Two behaviors were observed and verified in the reference lab (2026-07-20). Both
+are covered in detail, with the supported fix and Microsoft citations, in
+[fabric-cross-workspace-private-refresh.md](fabric-cross-workspace-private-refresh.md).
+
+1. **Cross-workspace semantic-model refresh is blocked by default.** Once the
+   private workspace denies inbound public access, a semantic model in the public
+   workspace that reads the private lakehouse's SQL analytics endpoint over an
+   ordinary cloud connection fails to refresh with
+   `CrossWorkspaceRequestNotAllowed` (Fabric's "access protector"). The model
+   must instead be bound to a **data gateway** (the OPDG or a VNet gateway) using
+   the workspace-private `z{xy}` datawarehouse FQDN. Semantic models cannot be
+   co-located in the private workspace (they are unsupported with workspace-level
+   private links), and Direct Lake is not yet supported against restricted
+   workspaces — use Import or DirectQuery.
+
+2. **SQL analytics endpoint metadata sync lag.** The public Import model reads
+   through the lakehouse's **SQL analytics endpoint**, which is a separate engine
+   that trails the OneLake Delta store by a few minutes. Immediately after a copy
+   job writes new rows, the first model refresh can still return the previous row
+   set; a second refresh after the endpoint metadata syncs returns the new rows.
+   When automating, schedule the model refresh a few minutes after the copy job
+   (or add an explicit metadata-sync step).
+
+Also note: after lockdown, **control-plane job triggers for the private workspace
+must originate from inside the allowed VNet** (or run as a schedule in the Fabric
+backend). Public-client API/portal calls to run jobs in the private workspace are
+denied by the inbound policy (`RequestDeniedByInboundPolicy`).

@@ -546,9 +546,9 @@ are stored and linked here.
 **Required screenshots:**
 
 - `12-private-lakehouse-created.jpeg`
-- `13-opdg-sql-connection-online.jpeg` (no password visible)
-- `14-copy-pipeline-succeeded.jpeg`
-- `15-lakehouse-salesorders-data.jpeg`
+- `13-sql-connection-gateway.jpeg` (no password visible)
+- `14-copyjob-succeeded-3rows.jpeg`
+- `15-lakehouse-salesorders-delta.jpeg`
 
 Record the lakehouse, SQL analytics endpoint, pipeline and connection IDs below
 the screenshots. **STOP:** do not restrict Workspace A until ingestion succeeds.

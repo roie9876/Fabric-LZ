@@ -193,11 +193,29 @@ report:
   via a **scheduled** run (which executes in the Fabric backend and is not
   subject to the client inbound check). This is why scheduling both hops is the
   practical customer pattern.
-- **SQL analytics endpoint sync lag:** immediately after the copy job wrote the
-  Delta row, the first model refresh still returned 3 rows. The SQL analytics
-  endpoint metadata trails OneLake Delta writes by a few minutes; a second
-  refresh after the sync returned the full 4 rows. Budget a short delay (or a
-  metadata-sync step) between hop 1 and hop 2 when automating.
+- **SQL analytics endpoint sync lag (the "two engines" problem):** immediately
+  after the copy job wrote the Delta row, the first model refresh still returned
+  3 rows; a second refresh a few minutes later returned all 4. This happens
+  because two different engines are involved and they are **not** updated
+  atomically:
+  1. The **copy job** writes Parquet + `_delta_log` into the **OneLake** Delta
+     table (the physical store) — this is immediate.
+  2. The **SQL analytics endpoint** is an auto-generated, read-only T-SQL engine
+     that sits *on top of* the lakehouse. It maintains its **own metadata** and
+     **background-syncs** from the Delta log on a short delay (seconds to a few
+     minutes). It is not the OneLake store itself.
+  3. The public **Import semantic model** refreshes **through the SQL analytics
+     endpoint** (we chose the "Azure SQL database" / SQL connector, not OneLake /
+     Direct Lake). So a refresh that fires *before* the endpoint has synced reads
+     the endpoint's stale metadata and loads the old row count — even though the
+     OneLake Delta table already has the new row.
+
+  Net effect: OneLake is fresh instantly, but the SQL analytics endpoint (and
+  therefore the Import model) trails it. Budget a short delay — or an explicit
+  endpoint metadata-refresh — between hop 1 (copy) and hop 2 (model refresh) when
+  automating. Direct Lake would read OneLake directly and avoid this lag, but it
+  is not yet supported against an inbound-restricted workspace (see below), so the
+  SQL-endpoint path with a small delay is the supported pattern here.
 
 ## Automating the pipeline (every N minutes)
 
