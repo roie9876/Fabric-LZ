@@ -130,15 +130,35 @@ needed.
 
 ### Step 3 — Create the gateway SQL connection and bind the model
 
-1. In **Manage connections and gateways**, on the OPDG (or a VNet gateway),
-   create a **SQL Server** connection:
+1. In **Manage connections and gateways**, select **+ New**, choose
+   **On-premises**, and pick the OPDG cluster (`azlab-gateway`). Set
+   **Connection type = SQL Server**:
    - Server: the `za2` datawarehouse FQDN (Step 1)
    - Database: `lh_onprem_private` (or the lakehouse GUID)
-   - Authentication: **Organizational account (OAuth2)**
-2. In **Workspace B -> semantic model -> Settings -> Gateway and cloud
-   connections**, switch from the cloud connection to the **gateway** connection
-   and map the data source.
-3. Trigger a refresh. `CrossWorkspaceRequestNotAllowed` should be gone; traffic
+   - Authentication method: **OAuth 2.0** -> **Edit credentials** -> sign in
+
+   ![New gateway SQL connection form](../workloads/fabric/images/fix-02-sql-connection-za2-form.jpeg)
+
+2. Leave **Skip test connection** unchecked and select **Create**. The test must
+   pass (green check), confirming the gateway resolves the `za2` FQDN privately
+   and reaches the SQL analytics endpoint over 443:
+
+   ![Gateway connection created and tested](../workloads/fabric/images/fix-05-connection-created.jpeg)
+
+3. Bind the semantic model to this connection. Either in **Workspace B ->
+   semantic model -> Settings -> Gateway and cloud connections** (toggle
+   **Gateway connections** On, map the data source), or via the API:
+
+   ```
+   POST https://api.powerbi.com/v1.0/myorg/groups/{workspaceBId}/datasets/{modelId}/Default.BindToGateway
+   { "gatewayObjectId": "<opdg-id>", "datasourceObjectIds": ["<connection-id>"] }
+   ```
+
+   > Tip: if the model still points at the public FQDN, first repoint its
+   > datasource server to the `za2` FQDN via `Default.UpdateDatasources`, so it
+   > matches the gateway connection's server string.
+
+4. Trigger a refresh. `CrossWorkspaceRequestNotAllowed` should be gone; traffic
    now flows: model (B) -> gateway -> private endpoint -> Workspace A SQL
    analytics endpoint.
 

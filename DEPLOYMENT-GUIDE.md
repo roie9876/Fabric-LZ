@@ -1752,9 +1752,12 @@ refresh**, not only the form before Save/Apply. Each evidence item must include:
   connection secret, or unrelated personal/tenant data.
 - Approver and explicit go/no-go result for the next STOP gate.
 
-The ten embedded screenshots are reference examples only. Customer evidence
-must be captured in the customer environment. Screenshots 09-19 remain pending
-until their phases are executed.
+The embedded screenshots are reference examples from the reference lab. Customer
+evidence must be captured in the customer environment. In the reference lab,
+Phases 1-9 have been executed and their screenshots captured (Layer 1 01-13,
+OPDG opdg-01..11, Phase 6 12-15 + walkthrough, Phase 7 16-18 + walkthrough,
+Phase 9 lockdown 19, and end-to-end proof 20). A customer run must re-capture
+these in the customer tenant.
 
 ## Rollback order
 
