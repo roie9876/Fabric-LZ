@@ -10,6 +10,8 @@ Azure service tags or FQDN tags — every rule is an explicit **FQDN** or **IP/p
 - Sources (captured 2026-07-19):
   - OPDG communication settings — https://learn.microsoft.com/data-integration/gateway/service-gateway-communication
   - Fabric allowlist URLs — https://learn.microsoft.com/fabric/security/fabric-allow-list-urls
+  - Azure Firewall FQDN filtering in network rules —
+    https://learn.microsoft.com/azure/firewall/fqdn-filtering-network-rules
 
 > **No Azure tags by design.** Microsoft's docs offer `PowerBI`, `ServiceBus`,
 > `AzureActiveDirectory`, `AzureCloud`, `DataFactory` service tags. We do **not** use them —
@@ -21,8 +23,10 @@ Azure service tags or FQDN tags — every rule is an explicit **FQDN** or **IP/p
 Azure Firewall evaluates rules **DNAT → Network → Application** (first match wins; a network
 match skips application rules). Therefore:
 
-- **Network collection** = private-link IPs + genuinely non-HTTP flows only (AMQP relay, TDS 1433).
-- **Application collection** = all HTTP/HTTPS, so the **FQDN** is captured in `AZFWApplicationRule`.
+- **Network collection** = the IP-based private-link rule. Azure Firewall network-rule
+  FQDN filtering does not support wildcards.
+- **Application collection** = HTTP, HTTPS, and MSSQL rules, so wildcard FQDNs are
+  supported and captured in `AZFWApplicationRule`.
 - A trailing **`Deny` application rule (`* :80,443`)** logs every web FQDN that is *not* allowed
   above. Run the OPDG workload, then read the denies — that is exactly the list of endpoints the
   Microsoft docs missed. Promote each confirmed one into an allow rule and re-apply.
@@ -38,7 +42,7 @@ AZFWApplicationRule
 | order by count_ desc
 ```
 ```kql
-// non-HTTP flows that reached the firewall (relay / TDS / private-link)
+// IP-based private-link flows that reached the firewall
 AZFWNetworkRule
 | where TimeGenerated > ago(2h)
 | summarize count() by SourceIp, DestinationIp, DestinationPort, Action, Protocol
@@ -52,14 +56,11 @@ Source for all rules: `172.16.0.0/16` (on-premises).
 | Rule | Destination | Ports | Why |
 |---|---|---|---|
 | `fabric-privatelink-443` | `10.2.0.0/27` (Fabric PE subnet, IPs `10.2.0.4-.8`) | TCP 443 | Fabric data-plane over Private Link |
-| `servicebus-relay` | `*.servicebus.windows.net` | TCP 5671, 5672, 9350-9354 | Azure Relay / Service Bus (gateway cloud connectivity, AMQP) |
-| `fabric-tds-1433` | `*.datawarehouse.fabric.microsoft.com`, `*.datawarehouse.pbidedicated.windows.net`, `*.datawarehouse.pbidedicated.microsoft.com`, `*.datamart.fabric.microsoft.com`, `*.datamart.pbidedicated.microsoft.com`, `*.pbidedicated.microsoft.com`, `*.pbidedicated.windows.net`, `*.database.fabric.microsoft.com` | TCP 1433 | Fabric DW / Datamart / staging lakehouse (TDS) |
-| `fabric-sqldb-redirect` | `*.database.fabric.microsoft.com` | TCP 11000-11999 | SQL DB in Fabric, redirect connection policy |
-| `cloudapp-tds-1433` | `*.cloudapp.azure.com` | TCP 1433 | Data sources on Azure VMs/Cloud Services (doc says 1443 — treated as 1433 typo) |
 
-> FQDN-based **network** rules require **DNS proxy** enabled on the policy *and* on-prem clients
-> using the firewall as their DNS server (see companion changes below), otherwise the firewall
-> and client may resolve to different IPs and the rule won't match.
+> Do not move the wildcard FQDN entries below into network rules. Azure Firewall
+> supports FQDN filtering in network rules only when DNS proxy is enabled, but
+> wildcard FQDNs are not supported there by design. Use application rules for
+> HTTP, HTTPS, and MSSQL FQDN filtering.
 
 ## Application rules — `opdg-app-allow` (priority 200, Allow)
 
@@ -72,6 +73,7 @@ Source for all rules: `172.16.0.0/16` (on-premises).
 | `gateway-ncsi` | `*.msftncsi.com` | 80 | Internet connectivity test |
 | `fabric-workload` | `*.core.windows.net`, `*.dfs.fabric.microsoft.com`, `*.frontend.clouddatahub.net` | 443 | OneLake writes, DFS, pipeline front-end |
 | `fabric-platform` | `*.fabric.microsoft.com`, `*.onelake.dfs.fabric.microsoft.com`, `*.onelake.blob.fabric.microsoft.com`, `*.pbidedicated.windows.net` | 443 | Fabric portal + OneLake |
+| `fabric-sql-tds` | `*.datawarehouse.fabric.microsoft.com`, `*.datawarehouse.pbidedicated.windows.net`, `*.datawarehouse.pbidedicated.microsoft.com`, `*.datamart.fabric.microsoft.com`, `*.datamart.pbidedicated.microsoft.com`, `*.pbidedicated.microsoft.com`, `*.pbidedicated.windows.net`, `*.database.fabric.microsoft.com`, `*.cloudapp.azure.com` | MSSQL 1433 | Fabric DW, Datamart, staging lakehouse, and Azure-hosted SQL sources through the application-level MSSQL proxy |
 | `certificate-revocation` | `oneocsp.microsoft.com`, `ocsp.digicert.com`, `crl3.digicert.com`, `crl4.digicert.com`, `cacerts.digicert.com`, `www.microsoft.com`, `crl.microsoft.com`, `ctldl.windowsupdate.com` | 80, 443 | CRL / OCSP checks (often missing from docs) |
 
 ## Default deny (discovery instrument) — `opdg-deny-log` (priority 300, Deny)
