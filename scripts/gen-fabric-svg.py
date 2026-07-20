@@ -121,9 +121,10 @@ def globe(cx, cy, r):
 
 
 def arrow(x1, y1, x2, y2, color, width=2.5, dash=None, marker="end", opacity=1.0):
+    mk = {AZURE: "Az", TEAL: "Te", GRAY: "Gy", RED: "Gy", GREEN: "Gy"}.get(color, "Gy")
     d = f' stroke-dasharray="{dash}"' if dash else ""
-    me = ' marker-end="url(#arrow)"' if marker in ("end", "both") else ""
-    ms = ' marker-start="url(#arrowS)"' if marker in ("both",) else ""
+    me = f' marker-end="url(#mk{mk})"' if marker in ("end", "both") else ""
+    ms = f' marker-start="url(#mkS{mk})"' if marker == "both" else ""
     P.append(
         f'<path d="M {x1} {y1} L {x2} {y2}" fill="none" stroke="{color}" '
         f'stroke-width="{width}" stroke-linecap="round"{d} opacity="{opacity}"{me}{ms}/>'
@@ -258,12 +259,10 @@ defs = f'''<defs>
   <radialGradient id="gGlobe" cx="0.35" cy="0.30" r="0.85">
     <stop offset="0" stop-color="#5aa9e6"/><stop offset="1" stop-color="#2a6db0"/>
   </radialGradient>
-  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-    <path d="M 0 0 L 10 5 L 0 10 z" fill="context-stroke"/>
-  </marker>
-  <marker id="arrowS" viewBox="0 0 10 10" refX="2" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-    <path d="M 10 0 L 0 5 L 10 10 z" fill="context-stroke"/>
-  </marker>
+  <marker id="mkAz" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0f6cbd"/></marker>
+  <marker id="mkTe" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#117865"/></marker>
+  <marker id="mkGy" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b5f66"/></marker>
+  <marker id="mkSTe" viewBox="0 0 10 10" refX="1.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M10 0L0 5L10 10z" fill="#117865"/></marker>
 </defs>'''
 
 svg = (
