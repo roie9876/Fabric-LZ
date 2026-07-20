@@ -1412,6 +1412,47 @@ traversed the firewall:
 Record the lakehouse, SQL analytics endpoint, copy job, connection IDs, run ID,
 start/end time, and row counts.
 
+<details>
+<summary><b>Copy job wizard walkthrough (step-by-step screenshots)</b></summary>
+
+1. In the lakehouse, start **New copy job**:
+
+   ![New copy job](workloads/fabric/images/p6-01-new-copy-job.jpeg)
+
+2. **Choose data source** — select **SQL Server database**:
+
+   ![Choose data source](workloads/fabric/images/p6-02-choose-data-source.jpeg)
+
+3. Select the on-premises data gateway (`[On-premises] azlab-gateway`):
+
+   ![Select gateway](workloads/fabric/images/p6-03-select-gateway.jpeg)
+
+4. Complete the connection (server, database, Basic auth, `fabric_gateway`).
+   If the source SQL has no trusted TLS cert, uncheck **Use encrypted
+   connection** (see note above):
+
+   ![Connection filled](workloads/fabric/images/p6-04-connection-filled.jpeg)
+
+5. **Choose data** — the gateway enumerates `dbo.SalesOrders` through the
+   firewall-routed path:
+
+   ![Choose data](workloads/fabric/images/p6-05-choose-data.jpeg)
+
+6. **Settings** — keep **Full copy** and destination root **Tables** (managed
+   Delta):
+
+   ![Settings full copy](workloads/fabric/images/p6-06-settings-full-copy.jpeg)
+
+7. **Map to destination** — confirm `dbo.SalesOrders` → `dbo.SalesOrders`:
+
+   ![Map to destination](workloads/fabric/images/p6-07-map-to-destination.jpeg)
+
+8. **Review + save** — confirm the summary, then **Save + Run**:
+
+   ![Review and save](workloads/fabric/images/p6-08-review-and-save.jpeg)
+
+</details>
+
 **Rollback:** disable the schedule/trigger, delete only the failed pipeline run
 artifacts and destination table created by this change, then correct the
 connection or mapping. Do not delete a shared customer connection without owner
@@ -1482,6 +1523,53 @@ Fabrikam Stores 875.50; total 4,325.49):
 > that is the compatibility gate: confirm workspace-level Private Link is
 > supported for the chosen connection mode before committing. Direct Lake is not
 > the fallback for an unsupported restricted-workspace path.
+
+<details>
+<summary><b>Get Data / semantic model + report walkthrough (step-by-step screenshots)</b></summary>
+
+1. In Workspace B, **New item** > **Semantic model** (or **Report**) > **Get
+   Data**:
+
+   ![Get Data](workloads/fabric/images/p7-01-get-data.jpeg)
+
+2. Choose **SQL Server database** and open the connect form:
+
+   ![SQL connect form](workloads/fabric/images/p7-02-sql-connect-form.jpeg)
+
+3. Enter the SQL analytics endpoint as **Server**, the lakehouse name as
+   **Database**, leave **Data gateway = (none)**, set **Authentication kind =
+   Organizational account** (the signed-in Fabric user authenticates — no
+   gateway, no Basic auth):
+
+   ![Organizational account auth](workloads/fabric/images/p7-03-org-account-auth.jpeg)
+
+4. The endpoint enumerates its tables cross-workspace — select `SalesOrders`:
+
+   ![Navigator SalesOrders](workloads/fabric/images/p7-04-navigator-salesorders.jpeg)
+
+5. Preview confirms the 3 rows read from the private lakehouse:
+
+   ![Source preview](workloads/fabric/images/p7-05-source-preview-3rows.jpeg)
+
+6. **Transform data** opens Power Query (Import) — 3 rows, 4 columns:
+
+   ![Power Query editor](workloads/fabric/images/p7-06-power-query-editor.jpeg)
+
+7. **Create a report** — name the semantic model and target **Workspace B
+   (public)**:
+
+   ![Create report naming](workloads/fabric/images/p7-07-create-report-naming.jpeg)
+
+8. Build a table visual showing the rows:
+
+   ![Table visual](workloads/fabric/images/p7-08-table-visual-3rows.jpeg)
+
+9. **Save** the report — select **Workspace B (public)** (the dialog may default
+   to the private workspace; switch it):
+
+   ![Save report dialog](workloads/fabric/images/p7-09-save-report-dialog.jpeg)
+
+</details>
 
 Record semantic model ID, report ID, connection mapping, refresh ID, refresh
 time, mode, and row count.
