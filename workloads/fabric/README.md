@@ -148,6 +148,11 @@ The screenshot shows the role and member selection. The assignment is complete
 only after finishing the remaining wizard steps. Access to **Admin portal** >
 **Tenant settings** confirms that the role is effective.
 
+![Fabric Administrator role effective](images/02-fabric-admin-role-effective.jpeg)
+
+The active-assignment view confirms that the operator has the **Fabric
+Administrator** role at directory scope with state **Assigned**.
+
 #### Enable workspace-level inbound network rules
 
 1. In Fabric, open **Settings** > **Admin portal** > **Tenant settings**.
@@ -297,6 +302,24 @@ Read-only Fabric API verification confirmed:
 - Workspace item count: `0`.
 - Inbound public access: `Allow`.
 - Outbound public access: `Allow`.
+
+#### Configure Conditional Access for public Fabric access
+
+Conditional Access is tenant-level identity protection; it is not scoped to a
+single Fabric workspace. In the Microsoft Entra admin center, create or select
+the policy that protects the applicable Fabric/Power BI cloud application,
+scope its user or group assignments, configure the required grant controls,
+exclude emergency-access accounts, and validate it in report-only mode before
+enforcement. Workspace B remains publicly addressable, but assigned users must
+satisfy this policy.
+
+> **Screenshot placeholder — Conditional Access policy applied**
+>
+> Capture the policy overview after saving it, showing the policy name, target
+> resources, user/group scope, grant controls, and current mode (**Report-only**
+> or **On**). Save it as
+> `images/09-entra-conditional-access-fabric-applied.jpeg`, then replace this
+> placeholder with: `![Conditional Access policy for public Fabric access](images/09-entra-conditional-access-fabric-applied.jpeg)`.
 
 ### 3. Deploy Phase B
 
@@ -521,10 +544,17 @@ recovery key. This is a customer/operator identity step, not Terraform state.
 
 **Required screenshots:**
 
-- `09-opdg-installer-complete.jpeg`: completed standard-mode software install.
-- `10-opdg-cluster-registered.jpeg`: final gateway registration summary; never
-  expose the recovery key.
-- `11-opdg-cluster-online.jpeg`: Fabric gateway management page showing Online.
+- Completed standard-mode software installation:
+
+  ![OPDG installation completed](images/opdg-03-install-complete.jpeg)
+
+- Final local registration state; no recovery key is exposed:
+
+  ![OPDG registered and ready for Fabric](images/opdg-08-online-fabric-ready.jpeg)
+
+- Fabric gateway management page showing the cluster Online:
+
+  ![OPDG cluster online in Fabric](images/opdg-10-fabric-cluster-online.jpeg)
 
 **STOP:** do not continue until the gateway is online and all three screenshots
 are stored and linked here.
@@ -550,6 +580,14 @@ are stored and linked here.
 - `14-copyjob-succeeded-3rows.jpeg`
 - `15-lakehouse-salesorders-delta.jpeg`
 
+![Private lakehouse created](images/12-private-lakehouse-created.jpeg)
+
+![SQL connection using the on-premises data gateway](images/13-sql-connection-gateway.jpeg)
+
+![Copy job succeeded with three rows](images/14-copyjob-succeeded-3rows.jpeg)
+
+![SalesOrders Delta table in the private lakehouse](images/15-lakehouse-salesorders-delta.jpeg)
+
 Record the lakehouse, SQL analytics endpoint, pipeline and connection IDs below
 the screenshots. **STOP:** do not restrict Workspace A until ingestion succeeds.
 
@@ -570,6 +608,16 @@ workspace scenario.
 - `16-public-semantic-model-gateway-binding.jpeg`
 - `17-public-semantic-model-refresh-succeeded.jpeg`
 - `18-public-report-salesorders.jpeg`
+
+![Public semantic model bound to OPDG](images/16-public-semantic-model-gateway-binding.jpeg)
+
+The applied settings show **Gateway connections** enabled, the on-premises
+gateway running, and the workspace-private SQL source mapped to the approved
+gateway connection.
+
+![Public semantic model refresh succeeded](images/17-public-semantic-model-refresh-succeeded.jpeg)
+
+![Public report showing SalesOrders](images/18-public-report-salesorders.jpeg)
 
 **STOP:** gateway binding and refresh must succeed before lockdown.
 
@@ -598,6 +646,10 @@ Record each result as command evidence:
 5. Repeat every Phase 8 private/gateway test.
 6. Confirm a public request to Workspace A is denied and Workspace B remains
   publicly reachable under its Entra Conditional Access policy.
+
+![Workspace A inbound networking restricted](images/19-private-workspace-inbound-restricted.jpeg)
+
+![Workspace B report refreshed after Workspace A lockdown](images/20-public-report-4th-row-after-lockdown.jpeg)
 
 Rollback: use the workspace communication policy API or portal to restore
 `publicAccessRules.defaultAction` to `Allow`; then diagnose DNS, endpoint,
