@@ -101,12 +101,32 @@ The workspace private endpoint auto-registers these A records in
 | `a20cea33...za2.dfs`     | 10.2.0.7 |
 | `a20cea33...za2.blob`    | 10.2.0.8 |
 
-There is **no `datawarehouse` record** — matching the doc's warning that the
-warehouse FQDN "isn't available as part of the DNS configurations for the
-private endpoint." The gateway host must be able to resolve the `za2`
-datawarehouse FQDN to the workspace private endpoint. Provide this via the
-gateway VNet's DNS (custom record / conditional forwarder) per the official
-walkthrough before the connection will succeed.
+There is **no explicit `datawarehouse` A record** — but one is **not needed**.
+The `za2` datawarehouse FQDN resolves through a CNAME chain to the `.c`
+sub-resource, which already has a private A record in the zone:
+
+```
+yzg45...za2.datawarehouse.fabric.microsoft.com
+  -> CNAME a20cea33...za2.c.fabric.microsoft.com
+  -> CNAME a20cea33...za2.c.privatelink.fabric.microsoft.com
+  -> A     10.2.0.5   (already registered by the workspace private endpoint)
+```
+
+Verified from the runner VM (inside the allowed VNet):
+`getent hosts yzg45...za2.datawarehouse.fabric.microsoft.com` -> `10.2.0.5`.
+So on this lab **no manual DNS record was required** — the existing workspace
+private endpoint DNS is sufficient once the gateway uses the `za2` FQDN.
+
+> **VERIFIED WORKING (2026-07-20):** created OPDG SQL connection
+> `sql-fabric-private-za2` (server = `za2` datawarehouse FQDN, database
+> `lh_onprem_private`, OAuth2). The **test connection passed** and a subsequent
+> semantic-model refresh **Completed** with no `CrossWorkspaceRequestNotAllowed`.
+> Evidence: `workloads/fabric/evidence/post-lockdown-refresh-FIXED-via-gateway.json`.
+
+**Firewall note:** the hub firewall's existing `fabric-privatelink-443` network
+rule (TCP 443 to `10.2.0.0/27`) was **sufficient** — the Fabric SQL analytics
+endpoint tunnels over 443 to the `.c` private-endpoint IP. No 1433 rule was
+needed.
 
 ### Step 3 — Create the gateway SQL connection and bind the model
 
@@ -128,6 +148,53 @@ walkthrough before the connection will succeed.
   inbound-restricted workspaces. Use **Import** or **DirectQuery** against the
   SQL analytics endpoint (Import is what this lab uses).
 - **Item/app sharing from Workspace A** — unsupported in restricted workspaces.
+
+## End-to-end proof after lockdown (2026-07-20)
+
+With Workspace A locked to private-only and the Workspace B model re-bound to the
+OPDG (this fix), a brand-new on-prem row was pushed all the way to the public
+report:
+
+1. Inserted a 4th row on-prem: `(4, 'Northwind Traders', '2026-07-20', 1500.00)`
+   -> source now 4 rows, total 5825.49.
+2. **Copy job re-run (hop 1)** — triggered from the runner VM over the private
+   `w.api` endpoint (`...za2.w.api...` -> 10.2.0.4); status **Completed**.
+3. **Model refresh (hop 2)** through the gateway — **Completed**.
+4. Public report now shows **4 rows incl. Northwind Traders** (screenshot
+   `20-public-report-4th-row-after-lockdown.jpeg`).
+
+### Two operational gotchas observed
+
+- **Management-plane isolation:** after lockdown, triggering the copy job from a
+  public client (my laptop) — via both the Fabric REST API and the portal —
+  is **denied** (`RequestDeniedByInboundPolicy` / page not found). Job control
+  for the private workspace must originate **inside the allowed VNet** (the
+  runner VM resolves `w.api` to the private endpoint 10.2.0.4 and succeeds), or
+  via a **scheduled** run (which executes in the Fabric backend and is not
+  subject to the client inbound check). This is why scheduling both hops is the
+  practical customer pattern.
+- **SQL analytics endpoint sync lag:** immediately after the copy job wrote the
+  Delta row, the first model refresh still returned 3 rows. The SQL analytics
+  endpoint metadata trails OneLake Delta writes by a few minutes; a second
+  refresh after the sync returned the full 4 rows. Budget a short delay (or a
+  metadata-sync step) between hop 1 and hop 2 when automating.
+
+## Automating the pipeline (every N minutes)
+
+Both hops can be scheduled so the public report stays current without manual
+steps:
+
+- **Hop 1 — Copy job schedule:** Copy job -> **Schedule** (min interval 15 min).
+  For delta-only loads, create the job in **Incremental** mode with a watermark
+  column (e.g. `OrderId` or a `ModifiedDate`); the current lab job is **Full
+  copy** (re-copies all rows each run).
+- **Hop 2 — Semantic model scheduled refresh:** model **Settings -> Refresh**.
+  Import mode reloads the model each refresh; add an **incremental refresh**
+  policy on the model for large tables. Schedule hop 2 a few minutes after hop 1
+  to absorb the SQL-endpoint sync lag.
+
+Scheduled runs execute in the Fabric backend, so they are **not** blocked by the
+inbound policy that denies public-client job control.
 
 ## Operational implication for the customer
 

@@ -1650,6 +1650,23 @@ change record. This is the final go/no-go review.
   to a data gateway — see
   [`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md).
 
+**End-to-end proof — new on-prem data reaching the public report while A stays
+private (2026-07-20):** after applying the gateway fix above, a new on-prem row
+(`Northwind Traders`, 1500.00) was pushed through both hops and appeared in the
+public report:
+
+![Public report shows the new 4th row after lockdown](workloads/fabric/images/20-public-report-4th-row-after-lockdown.jpeg)
+
+Key operational notes from this proof (details in the fix doc):
+
+- Copy job control for the now-private Workspace A must be triggered from **inside
+  the allowed VNet** (the runner resolves `...za2.w.api...` to the private
+  endpoint) or via a **scheduled** run — public-client API/portal job control is
+  denied by the inbound policy.
+- Allow for the **SQL analytics endpoint sync lag**: the first refresh after the
+  copy may still show old data; a second refresh after the metadata sync shows
+  the new rows.
+
 API equivalent for an approved automation path:
 
 ```bash

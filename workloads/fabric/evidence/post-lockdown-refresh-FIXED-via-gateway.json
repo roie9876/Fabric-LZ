@@ -1,0 +1,72 @@
+{
+    "@odata.context": "https://wabi-west-us3-a-primary-redirect.analysis.windows.net/v1.0/myorg/groups/80196352-de18-4a77-853c-745ba3ea86d5/$metadata#refreshes",
+    "value": [
+        {
+            "requestId": "31c0ed51-6ad5-440a-9f7c-0ccf46636ad9",
+            "id": 57429436,
+            "refreshType": "ViaApi",
+            "startTime": "2026-07-20T09:35:56.32Z",
+            "endTime": "2026-07-20T09:36:35.787Z",
+            "status": "Completed",
+            "refreshAttempts": [
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T09:35:56.5849636Z",
+                    "endTime": "2026-07-20T09:36:26.469299Z",
+                    "type": "Data",
+                    "executionMetrics": []
+                },
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T09:36:27.500546Z",
+                    "endTime": "2026-07-20T09:36:28.8286622Z",
+                    "type": "Query",
+                    "executionMetrics": []
+                }
+            ]
+        },
+        {
+            "requestId": "66712337-79cc-4d00-b508-b8672726bee6",
+            "id": 57428603,
+            "refreshType": "ViaApi",
+            "startTime": "2026-07-20T08:55:38.417Z",
+            "endTime": "2026-07-20T08:55:58.95Z",
+            "serviceExceptionJson": "{\"errorCode\":\"ModelRefresh_ShortMessage_ProcessingError\",\"errorDescription\":\"{\\\"error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"pbi.error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"parameters\\\":{\\\"ErrorMessage\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"},\\\"details\\\":[{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"detail\\\":{\\\"type\\\":1,\\\"value\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"}}]}}}\"}",
+            "status": "Failed",
+            "refreshAttempts": [
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T08:55:39.1816889Z",
+                    "endTime": "2026-07-20T08:55:58.9514731Z",
+                    "type": "Data",
+                    "serviceExceptionJson": "{\"errorCode\":\"ModelRefresh_ShortMessage_ProcessingError\",\"errorDescription\":\"{\\\"error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"pbi.error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"parameters\\\":{\\\"ErrorMessage\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"},\\\"details\\\":[{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"detail\\\":{\\\"type\\\":1,\\\"value\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"}}]}}}\"}",
+                    "executionMetrics": []
+                }
+            ]
+        },
+        {
+            "requestId": "06e11cbf-e04f-4b17-a2cb-f99c1ef138cd",
+            "id": 57426470,
+            "refreshType": "ViaApi",
+            "startTime": "2026-07-20T07:07:35.5Z",
+            "endTime": "2026-07-20T07:07:57.137Z",
+            "status": "Completed",
+            "refreshAttempts": [
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T07:07:35.5948585Z",
+                    "endTime": "2026-07-20T07:07:48.6336673Z",
+                    "type": "Data",
+                    "executionMetrics": []
+                },
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T07:07:49.6024116Z",
+                    "endTime": "2026-07-20T07:07:50.3367865Z",
+                    "type": "Query",
+                    "executionMetrics": []
+                }
+            ]
+        }
+    ]
+}
