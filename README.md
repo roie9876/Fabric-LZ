@@ -7,9 +7,20 @@ independent layers** so each can be developed and tested on its own.
 > customer, partner, or environment identity. See
 > [docs/PUBLISHING.md](docs/PUBLISHING.md) for how that separation is enforced.
 
-> **Deploying the lab? Start with the copy/paste operator timeline:**
-> [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md). It identifies every Terraform,
-> portal, API, validation, screenshot, and stop-gate action in execution order.
+## Start here
+
+| Goal | Authoritative document |
+|---|---|
+| Deploy the solution | [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) |
+| Understand the overall architecture | This README and the [documentation index](docs/README.md) |
+| Understand the Fabric module | [workloads/fabric/README.md](workloads/fabric/README.md) |
+| Review the completed Fabric reference lab | [workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md) |
+| Review Layer 1 as-built evidence | [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md) |
+| Contribute without exposing environment identity | [docs/PUBLISHING.md](docs/PUBLISHING.md) |
+
+`DEPLOYMENT-GUIDE.md` is the only executable deployment sequence. Component
+READMEs describe implementation boundaries and link back to the guide rather
+than maintaining competing procedures.
 
 ## Table of Contents
 
@@ -112,7 +123,9 @@ platform/            Layer 1 — Landing Zone foundation (Terraform stages)
   40-monitoring/        Log Analytics, AMPLS, alerts, DCR, workbooks
   50-security/          Defender for Cloud, CNAPP onboarding hooks
 workloads/
-  fabric/            Layer 2 — Fabric spoke + private links
+  fabric/            Layer 2 — module README, Terraform, reference-lab evidence
+    README.md           architecture and Terraform boundary
+    REFERENCE-LAB.md    completed lab history and evidence links
   foundry/           Layer 3 — Foundry + AI Search + APIM spoke
 modules/             reusable Terraform modules (naming, spoke-vnet, ...)
 examples/

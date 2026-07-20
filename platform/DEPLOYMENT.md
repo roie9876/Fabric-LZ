@@ -1,9 +1,14 @@
-# Platform (Layer 1) — As-Built Deployment
+# Platform (Layer 1) — reference lab as-built deployment
 
 This document captures the **actual deployed state** of the Layer 1 platform
-foundation, verified against the live Azure portal. The Terraform in
+foundation for the reference lab, verified against the live Azure portal. It is
+an evidence record, not a second deployment procedure. The Terraform in
 `platform/` produced the resources shown below. Screenshots are stored in
 [`images/`](./images).
+
+> **Customer deployment:** Follow
+> [DEPLOYMENT-GUIDE.md Step 2](../DEPLOYMENT-GUIDE.md#2-establish-private-terraform-state-and-deploy-layer-1),
+> then capture equivalent evidence for the customer environment.
 
 > **Scope note.** This is a **lab / sandbox** deployment (`azr-sbx-lab-0001`) in
 > **Israel Central**. Resource IDs and subscription details are visible in the

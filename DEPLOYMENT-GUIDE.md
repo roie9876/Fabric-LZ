@@ -1,17 +1,21 @@
 # Customer Deployment Guide: Fabric Private Workspace
 
-This is the standalone operator runbook for deploying the repository in a
-customer environment without an AI assistant. Follow it from top to bottom. Do
-not skip a **STOP** gate, reuse a saved plan after changing permissions or
+This is the authoritative operator runbook for deploying the repository in a
+customer environment without an AI assistant. It is the only executable
+deployment sequence in the repository. Follow it from top to bottom. Do not
+skip a **STOP** gate, reuse a saved plan after changing permissions or
 variables, or restrict Workspace A public access before the final gate.
 
 The guide embeds every portal screenshot already captured during the reference
 deployment. Screenshots show the navigation and expected state; customer names,
 subscriptions, regions, CIDRs, workspace IDs, and capacity IDs will differ.
 
-For architecture rationale and the detailed reference deployment history, see
-[workloads/fabric/README.md](workloads/fabric/README.md). For the Layer 1
-as-built evidence, see [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md).
+For the Fabric module architecture, see
+[workloads/fabric/README.md](workloads/fabric/README.md). For the completed
+Fabric reference deployment history, see
+[workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md). For
+Layer 1 as-built evidence, see
+[platform/DEPLOYMENT.md](platform/DEPLOYMENT.md).
 
 ## Contents
 
@@ -40,7 +44,6 @@ as-built evidence, see [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md).
 - [Rollback order](#rollback-order)
 - [Troubleshooting matrix](#troubleshooting-matrix)
 - [Firewall rule reference (OPDG + Fabric)](#firewall-rule-reference-opdg--fabric)
-- [Reference lab resume appendix](#reference-lab-resume-appendix)
 
 ## Scope and release boundary
 
@@ -233,21 +236,25 @@ The Terraform in this repository cannot repair missing enterprise prerequisites.
 
 ## Reference lab checkpoint (do not copy to a customer)
 
-As of **2026-07-13**:
+As of **2026-07-20**:
 
-- Platform foundation: deployed.
-- Fabric Phase A: deployed and converged.
-- Private and public Fabric workspaces: created on F2.
-- Fabric Phase B workspace Private Link: deployed and converged.
-- SQL and OPDG lab VMs: deployed and validated.
-- Next deployment action: **Phase 5, interactive OPDG installation and
-  registration**.
-- Runtime state restored on **2026-07-19**: F2 is `Active`; all six subscription
-  VMs are `VM running`; the Container App revision is active with one replica.
-- Resume validation passed: on-prem to hub peering is connected, the Fabric spoke
-  is reachable via the firewall, SQL and OPDG are healthy, all five private Fabric endpoints resolve
-  and accept TCP 443, and authenticated Workspace A access returns HTTP `200`.
-- Workspace A public access is still `Allow`. Do not restrict it yet.
+- Platform foundation, Fabric Phase A, and Fabric Phase B are deployed and
+  converged.
+- SQL and OPDG lab VMs are deployed; the gateway is registered and Online.
+- Private lakehouse ingestion and the public semantic model/report are
+  validated.
+- Workspace A denies public inbound access and remains reachable through its
+  workspace-level private endpoint.
+- Workspace B refreshes through the OPDG using the workspace-private SQL
+  analytics endpoint; post-lockdown report validation completed.
+- The reference-lab Conditional Access evidence is still pending. Treat the
+  production release gate as open until an approved policy is applied and
+  tested.
+
+Reference records:
+
+- [Platform Layer 1 as-built evidence](platform/DEPLOYMENT.md)
+- [Fabric reference-lab history and screenshots](workloads/fabric/REFERENCE-LAB.md)
 
 ## Execution model
 
@@ -1847,7 +1854,8 @@ The AzureRM backend uses an Azure Blob lease. If Terraform reports a lock:
 |---|---|
 | Layer 1 screenshots and inventory | [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md) |
 | Fabric portal screenshots | `workloads/fabric/images/` |
-| Fabric full runbook and API evidence | [workloads/fabric/README.md](workloads/fabric/README.md) |
+| Fabric module architecture | [workloads/fabric/README.md](workloads/fabric/README.md) |
+| Fabric reference-lab history and API evidence | [workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md) |
 | Architecture diagrams | `docs/diagrams/` and `docs/images/` |
 | Terraform validation | Run in each Terraform root before plan/apply |
 | Secrets check | `bash scripts/check-sensitive.sh` |
@@ -1926,30 +1934,3 @@ not the OPDG workload, in production.
 - **No inbound internet ports** are required by the OPDG.
 - OPDG↔SQL (TCP 1433) is on-premises-only and is **not** seen by the Azure
   firewall; validate that port on the gateway host itself.
-
-## Reference lab resume appendix
-
-This appendix applies only to the reference sandbox deployed on 2026-07-13. It
-must not be copied into a customer production change.
-
-Resume the reference lab F2 and only the three VMs required for Phase 5:
-
-```bash
-SUBSCRIPTION_ID=<reference-lab-subscription-id>
-RESOURCE_GROUP=azr-sbx-lab-0001-rg-onprem-sim
-
-az rest --method post \
-  --url "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/azr-sbx-lab-0001-rg-fabric-spoke/providers/Microsoft.Fabric/capacities/azrsbxlab0001fabcap/resume?api-version=2023-11-01"
-
-for vm_name in \
-  azr-sbx-lab-0001-vm-onprem-runner \
-  azr-sbx-lab-0001-vm-onprem-sql \
-  azr-sbx-lab-0001-vm-onprem-opdg
-
-  az vm start --subscription "$SUBSCRIPTION_ID" \
-    --resource-group "$RESOURCE_GROUP" --name "$vm_name"
-done
-```
-When returning to this deployment, begin at **Step 3**, verify the resumed
-resources, then continue at **Step 10**. Do not repeat completed portal or
-Terraform phases unless a read-only check or Terraform plan shows drift.

@@ -3,6 +3,13 @@
 A spoke dedicated to **Microsoft Fabric** with private connectivity, peered to
 the hub via classic VNet peering and governed by the platform policies.
 
+> **Document scope:** This is the architecture summary. See the
+> [Fabric module README](../workloads/fabric/README.md) for the Terraform
+> boundary, the [deployment guide](../DEPLOYMENT-GUIDE.md) for executable steps,
+> and the
+> [reference-lab record](../workloads/fabric/REFERENCE-LAB.md) for applied-state
+> evidence.
+
 ## Scope
 
 - Fabric spoke VNet (peered to hub, no direct spoke-to-spoke peering).
