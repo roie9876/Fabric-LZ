@@ -20,5 +20,5 @@ python3 "${ROOT}/scripts/gen-fabric-svg.py"
 TMP="$(mktemp -d)"
 trap 'rm -rf "${TMP}"' EXIT
 qlmanage -t -s 3200 -o "${TMP}" "${SVG}" >/dev/null 2>&1
-sips -c 1920 3200 "${TMP}/05-fabric-private-link.svg.png" --out "${PNG}" >/dev/null 2>&1
+sips -c 1664 3200 "${TMP}/05-fabric-private-link.svg.png" --out "${PNG}" >/dev/null 2>&1
 echo "-> ${PNG}"

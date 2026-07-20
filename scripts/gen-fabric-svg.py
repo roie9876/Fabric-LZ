@@ -30,7 +30,7 @@ FRAME_BORDER = "#e3e9f0"
 # System font (San Francisco on macOS via system-ui) — closest to the Segoe UI look.
 FONT = "system-ui,-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif"
 
-W, H = 1600, 960
+W, H = 1600, 832
 SQ = 1600             # square canvas so macOS qlmanage doesn't center-crop the export
 YOFF = (SQ - H) // 2  # vertical centering offset for the design band
 
@@ -226,29 +226,6 @@ _clients = [(384, g_people), (448, g_wifi), (512, g_laptop), (576, g_phone)]
 for cy, fn in _clients:
     fn(1524, cy, 34)
     arrow(1466, 436, 1506, cy, GRAY, 1.8, dash="4 4", marker="none")
-
-# ---- bottom caption cards ----
-caps = [
-    "Selected workspaces are protected with Private Links and closed from the public internet.",
-    "A secure link between public and private workspaces uses private data access.",
-    "Public workspaces are secured through Entra Conditional Access policies (e.g. Power BI).",
-]
-cw = (1504 - 2 * 24) / 3
-for i, c in enumerate(caps):
-    bx = 48 + i * (cw + 24)
-    rrect(bx, 840, cw, 96, 16, AZURE_TINT, AZURE_LINE, 1.4)
-    words, line, lines = c.split(), "", []
-    for w in words:
-        if len(line) + len(w) + 1 > 42:
-            lines.append(line)
-            line = w
-        else:
-            line = (line + " " + w).strip()
-    lines.append(line)
-    ty = 840 + 96 / 2 - (len(lines) - 1) * 12 + 6
-    for ln in lines:
-        text(bx + cw / 2, ty, ln, size=15, color="#254a68", weight="600", anchor="middle")
-        ty += 24
 
 # ============================ assemble =======================================
 defs = f'''<defs>

@@ -16,7 +16,7 @@
   <marker id="mkGn" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L10 5L0 10z" fill="#1a7f37"/></marker>
 </defs>
 <rect x="0" y="0" width="1600" height="1600" fill="#ffffff"/>
-<g transform="translate(0,320)">
+<g transform="translate(0,384)">
 <text x="64" y="78" font-size="42" font-weight="700" fill="#20242b" text-anchor="start">Workspace Private Link for Fabric</text>
 <text x="66" y="120" font-size="22" font-weight="600" fill="#117865" text-anchor="start">Perimeter network security for your workspace</text>
 <rect x="48" y="156" width="1504" height="652" rx="24" ry="24" fill="#f5f8fb" stroke="#e3e9f0" stroke-width="1.5"/>
@@ -114,16 +114,5 @@
 <rect x="1518.9" y="567.5" width="10.2" height="14.96" fill="#ffffff"/>
 <circle cx="1524" cy="584.5" r="1.53" fill="#ffffff"/>
 <path d="M 1466 436 L 1506 576" fill="none" stroke="#5b5f66" stroke-width="1.8" stroke-linecap="round" stroke-dasharray="4 4"/>
-<rect x="48.0" y="840" width="485.3333333333333" height="96" rx="16" ry="16" fill="#eef6fc" stroke="#cfe4f7" stroke-width="1.4"/>
-<text x="290.66666666666663" y="870.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">Selected workspaces are protected with</text>
-<text x="290.66666666666663" y="894.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">Private Links and closed from the public</text>
-<text x="290.66666666666663" y="918.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">internet.</text>
-<rect x="557.3333333333333" y="840" width="485.3333333333333" height="96" rx="16" ry="16" fill="#eef6fc" stroke="#cfe4f7" stroke-width="1.4"/>
-<text x="799.9999999999999" y="882.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">A secure link between public and private</text>
-<text x="799.9999999999999" y="906.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">workspaces uses private data access.</text>
-<rect x="1066.6666666666665" y="840" width="485.3333333333333" height="96" rx="16" ry="16" fill="#eef6fc" stroke="#cfe4f7" stroke-width="1.4"/>
-<text x="1309.3333333333333" y="870.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">Public workspaces are secured through</text>
-<text x="1309.3333333333333" y="894.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">Entra Conditional Access policies (e.g.</text>
-<text x="1309.3333333333333" y="918.0" font-size="15" font-weight="600" fill="#254a68" text-anchor="middle">Power BI).</text>
 </g>
 </svg>
