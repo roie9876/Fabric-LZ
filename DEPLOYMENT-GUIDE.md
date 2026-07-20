@@ -1350,32 +1350,66 @@ members must be healthy, and screenshots 09-11 must be approved.
   terminals. Customer production uses its approved secret manager and
   least-privilege identity; it does not use Terraform state as a credential
   delivery mechanism.
-7. Under gateway, select the OPDG cluster registered in Step 10. Select **Test
-  connection**. Save only after the test succeeds.
-8. Return to Workspace A and select **New item** > **Data pipeline**. Enter the
-  approved pipeline name; the reference lab uses
-  `pl_sql_to_onelake_private`.
-9. Add a **Copy data** activity. Select the saved SQL connection as source and
-  the approved source table (`dbo.SalesOrders` in the lab).
-10. Select the Workspace A lakehouse as destination and create/map the target
-   Delta table. Review column names and data types before publishing.
-11. **Validate** the pipeline, then **Save/Publish** it.
-12. Select **Run**. Open the run output and verify status `Succeeded`, source
-   and destination row counts match, and no rows were skipped.
-13. Open the Lakehouse table preview or SQL analytics endpoint and verify the
-   expected rows. The lab expects exactly three rows.
+7. Under gateway, select the OPDG cluster registered in Step 10.
+   - **Encryption note:** if the source SQL Server has no TLS certificate that
+     the gateway trusts (common for lab/on-prem SQL), the wizard fails with
+     *"We were unable to connect to the data source using an encrypted
+     connection."* Uncheck **Use encrypted connection** and re-test. The
+     reference lab connection is unencrypted for this reason; a customer with a
+     trusted certificate should leave encryption enabled.
+   - Select **Test connection**. Save only after the test succeeds.
+8. In the Workspace A lakehouse editor, select **New copy job** (Copy job is the
+   simplest managed-Delta ingestion path and lands a clean queryable table).
+   Choose **SQL Server database** as the source and select the connection saved
+   in Step 6-7 (shown as `[On-premises] <gateway name>`).
+9. On **Choose data**, select the approved source table (`dbo.SalesOrders` in the
+   lab). The gateway enumerates the table through the firewall-routed path.
+10. On **Settings**, keep **Full copy** and a destination root of **Tables**
+   (managed Delta). On **Map to destination**, confirm the target table
+   (`dbo.SalesOrders`) and review column names/types.
+11. Select **Save + Run** (or **Save**, then **Run** from the toolbar).
+12. Open the **Results** tab and verify status `Succeeded`, `Rows read` and
+   `Rows written` match, and jobs completed `1/1`. The lab expects exactly three
+   rows read and written.
+13. In the Lakehouse **Explorer**, refresh **Tables**, expand the `dbo` schema,
+   and open the target table. Verify it renders as a normal Delta table (not
+   **Unidentified**) and previews the expected rows. The lab expects exactly
+   three rows.
 
-Required customer screenshots (pending):
+**Screenshots (captured, firewall-routed run 2026-07-20):**
 
-- `12-private-lakehouse-created.jpeg`
-- `13-opdg-sql-connection-online.jpeg`
-- `14-copy-pipeline-succeeded.jpeg`
-- `15-lakehouse-salesorders-data.jpeg`
+Private lakehouse created in Workspace A:
 
-> **Screenshot status:** no screenshots 12-15 exist yet. Capture the final
-> applied/succeeded screens with credentials and unrelated tenant data hidden.
+![Private lakehouse created](workloads/fabric/images/12-private-lakehouse-created.jpeg)
 
-Record the lakehouse, SQL analytics endpoint, pipeline, connection IDs, run ID,
+SQL Server connection online through the on-premises data gateway (unencrypted,
+Basic auth, `[On-premises] azlab-gateway`):
+
+![SQL connection through gateway](workloads/fabric/images/13-sql-connection-gateway.jpeg)
+
+Copy job succeeded — 3 rows read, 3 rows written, `dbo.SalesOrders → dbo.SalesOrders`:
+
+![Copy job succeeded](workloads/fabric/images/14-copyjob-succeeded-3rows.jpeg)
+
+Clean queryable Delta table in the lakehouse (all 3 rows, 4 columns):
+
+![Lakehouse SalesOrders Delta table](workloads/fabric/images/15-lakehouse-salesorders-delta.jpeg)
+
+**Firewall transit evidence (this run):** with all on-prem egress forced through
+the Azure hub firewall (UDR), the copy-job run at 09:33-09:34 (GMT+3) was
+observed in the firewall logs, proving both control- and data-plane traffic
+traversed the firewall:
+
+- **Application rule (Allow):** gateway → `*.servicebus.windows.net`
+  (control channel) and `wu3.frontend.clouddatahub.net` (Fabric copy data plane).
+- **Network rule (Allow):** gateway `172.16.x` → Fabric private endpoint
+  `10.2.0.7:443` — 14 TCP connections during the run window (06:33:52-06:34:00
+  UTC), matching the data-plane write to OneLake.
+- Windows/Defender/telemetry FQDNs were **Denied** by the catch-all, confirming
+  least-privilege egress. See `docs/fabric-opdg-firewall-rules.md` for the full
+  rule set and validated FQDN list.
+
+Record the lakehouse, SQL analytics endpoint, copy job, connection IDs, run ID,
 start/end time, and row counts.
 
 **Rollback:** disable the schedule/trigger, delete only the failed pipeline run
