@@ -1,13 +1,20 @@
-# Workload — Fabric (Layer 2)
+# Fabric workload — reference lab deployment record
+
+> **Reference lab only:** This document preserves the detailed execution
+> history, screenshots, API checks, and applied-state evidence from the
+> `azr-sbx-lab-0001` deployment. It is not the customer deployment procedure.
+> Follow [../../DEPLOYMENT-GUIDE.md](../../DEPLOYMENT-GUIDE.md) to deploy the
+> solution. See [README.md](README.md) for the Fabric module architecture and
+> Terraform boundary.
 
 Spoke for **Microsoft Fabric** with private connectivity, peered to the hub
 (classic peering + UDR) and governed by the platform policies.
 
-## Operator execution ledger
+## Reference execution ledger
 
-This README is the source of truth for the deployment. Execute phases in order.
-Do not skip a **STOP** gate. The **Operator** column identifies where each action
-runs and whether the evidence is command output or a portal screenshot.
+This ledger records how the reference environment was executed. The
+**Operator** column identifies where each action ran and whether the evidence is
+command output or a portal screenshot.
 
 | Phase | Operator | Action | Status / stop gate |
 |---|---|---|---|
@@ -16,11 +23,11 @@ runs and whether the evidence is command output or a portal screenshot.
 | 2 | Fabric portal | Create private/open workspaces on F2 | **Complete**; screenshots stored |
 | 3 | Terraform runner + Fabric API | Deploy Workspace A Private Link and endpoint | **Complete**; no drift |
 | 4 | Terraform runner | Deploy simulated on-prem SQL and stage OPDG installer | **Complete**; validated, no drift |
-| 5 | Azure Run Command + Fabric sign-in | Register OPDG cluster and verify it online | **STOP:** user-based sign-in + recovery key required |
-| 6 | Fabric portal/API | Create restricted lakehouse and sample ingestion path | **STOP:** capture each applied portal state |
-| 7 | Fabric portal | Create public semantic model/report and bind OPDG | **STOP:** gateway binding and refresh must pass |
-| 8 | Fabric API + on-prem tests | Re-run private authenticated, DNS, SQL and refresh tests | **STOP:** all tests must pass |
-| 9 | Fabric portal/API | Deny Workspace A public inbound access | **STOP:** final private retest required |
+| 5 | Azure Run Command + Fabric sign-in | Register OPDG cluster and verify it online | **Complete**; gateway Online and documented |
+| 6 | Fabric portal/API | Create restricted lakehouse and sample ingestion path | **Complete**; ingestion and Delta evidence stored |
+| 7 | Fabric portal | Create public semantic model/report and bind OPDG | **Complete**; gateway refresh validated |
+| 8 | Fabric API + on-prem tests | Re-run private authenticated, DNS, SQL and refresh tests | **Complete**; validation evidence stored |
+| 9 | Fabric portal/API | Deny Workspace A public inbound access | **Lockdown complete**; private-only access and post-lockdown refresh validated. Workspace B Conditional Access evidence **pending** |
 | 10 | Azure API | Pause/resume F2 and lab compute | **Resumed 2026-07-19**; F2 active, all stopped compute restored |
 
 ### Command execution rule
@@ -313,13 +320,12 @@ exclude emergency-access accounts, and validate it in report-only mode before
 enforcement. Workspace B remains publicly addressable, but assigned users must
 satisfy this policy.
 
-> **Screenshot placeholder — Conditional Access policy applied**
+> **Evidence status — pending**
 >
 > Capture the policy overview after saving it, showing the policy name, target
 > resources, user/group scope, grant controls, and current mode (**Report-only**
-> or **On**). Save it as
-> `images/09-entra-conditional-access-fabric-applied.jpeg`, then replace this
-> placeholder with: `![Conditional Access policy for public Fabric access](images/09-entra-conditional-access-fabric-applied.jpeg)`.
+> or **On**). Store the permanent repository evidence as
+> `images/09-entra-conditional-access-fabric-applied.jpeg`.
 
 ### 3. Deploy Phase B
 
@@ -708,9 +714,10 @@ The complete July 13 shutdown set was restored:
 - Final detailed-exit-code plans: Fabric Phase A `0`, Phase B `0`, on-prem lab
   `0` (**No changes** for all three states).
 
-The next action remains Phase 5: install and register the On-premises Data
-Gateway. Workspace A public access remains enabled until all later stop gates
-pass.
+At this **2026-07-19 checkpoint**, the next action was Phase 5: install and
+register the On-premises Data Gateway. That action and the later lockdown phases
+were completed on 2026-07-20; see the reference execution ledger at the top of
+this document for the final state.
 
 To resume Phase 5, start only the Fabric lab dependencies:
 
