@@ -1478,10 +1478,15 @@ capacity does not grant Workspace B network access to Workspace A.
 2. In Workspace B, select **New item** > **Semantic model** (or **Report** >
   **Get data**). Choose **Get Data** > **SQL Server database**.
 3. Enter the SQL analytics endpoint as **Server** and the lakehouse name as
-  **Database**. Leave **Data gateway** = `(none)` — a Fabric SQL analytics
-  endpoint is a cloud data source and does not use the OPDG. Set
-  **Authentication kind** = **Organizational account** (Entra/OAuth); the
-  signed-in Fabric user authenticates. Do not use Basic/SQL auth here.
+  **Database**. For **initial build while Workspace A is still public**, leave
+  **Data gateway** = `(none)` and set **Authentication kind** =
+  **Organizational account** (Entra/OAuth). Do not use Basic/SQL auth here.
+  > ⚠️ **This cloud connection stops refreshing once Workspace A is locked down
+  > in Phase 9** (fails with `CrossWorkspaceRequestNotAllowed`). To keep the
+  > public model refreshing against a private Workspace A you MUST bind it to a
+  > **data gateway** using the workspace-private `z{xy}` connection string. See
+  > [`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md)
+  > and do it before/after lockdown per that runbook.
 4. Select **Next**, choose the source table (`dbo.SalesOrders`), confirm the
   preview shows the expected rows, then **Transform data** > **Create a report**
   (Import). This creates the semantic model and report in Workspace B.
@@ -1628,8 +1633,22 @@ change record. This is the final go/no-go review.
 10. Verify Workspace B remains publicly reachable under Entra Conditional
    Access.
 
-> **Screenshot status:** screenshot 19 does not exist yet because lockdown has
-> not been executed. Capture only the final persisted customer state.
+**Screenshot (captured 2026-07-20):** Workspace A inbound networking persisted as
+*"Allow connections from selected networks and workspace level private links"*
+(public addresses Not configured = private-link only):
+
+![Workspace A inbound restricted](workloads/fabric/images/19-private-workspace-inbound-restricted.jpeg)
+
+**Post-lockdown re-validation results (this run):**
+
+- ✅ **Copy job (on-prem -> Workspace A) still succeeds** through the OPDG over
+  the workspace private endpoint (public access = Deny) — instance completed,
+  3 rows.
+- ⚠️ **Public Workspace B semantic-model refresh fails** with
+  `CrossWorkspaceRequestNotAllowed` while it uses the ordinary cloud connection.
+  This is expected (Fabric access protector) and is fixed by binding the model
+  to a data gateway — see
+  [`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md).
 
 API equivalent for an approved automation path:
 
@@ -1652,6 +1671,16 @@ unset TOKEN
 select **Apply**. API rollback changes `defaultAction` to `Allow`. Wait for
 propagation, verify public recovery, then diagnose DNS, endpoint, routing,
 gateway, and item compatibility before retrying.
+
+> ⚠️ **Cross-workspace refresh gate (verified 2026-07-20):** after this lockdown,
+> the OPDG copy job (on-prem -> Workspace A) keeps working over the private
+> endpoint, but a public **Workspace B** semantic-model refresh that reads
+> Workspace A over an ordinary **cloud connection** fails with
+> `CrossWorkspaceRequestNotAllowed`. This is by design (Fabric access protector).
+> The supported fix is to bind the Workspace B model to a **data gateway** (VNet
+> or the existing OPDG) using the workspace-private `z{xy}` datawarehouse
+> connection string. Full root-cause, Microsoft citations, and step-by-step fix:
+> [`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md).
 
 **STOP:** success requires private access and data workflows to pass, public
 Workspace A access to fail, Workspace B to remain available under CA, and the

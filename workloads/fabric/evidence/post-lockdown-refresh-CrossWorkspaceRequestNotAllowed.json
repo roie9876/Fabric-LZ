@@ -1,0 +1,66 @@
+{
+    "@odata.context": "https://wabi-west-us3-a-primary-redirect.analysis.windows.net/v1.0/myorg/groups/80196352-de18-4a77-853c-745ba3ea86d5/$metadata#refreshes",
+    "value": [
+        {
+            "requestId": "66712337-79cc-4d00-b508-b8672726bee6",
+            "id": 57428603,
+            "refreshType": "ViaApi",
+            "startTime": "2026-07-20T08:55:38.417Z",
+            "endTime": "2026-07-20T08:55:58.95Z",
+            "serviceExceptionJson": "{\"errorCode\":\"ModelRefresh_ShortMessage_ProcessingError\",\"errorDescription\":\"{\\\"error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"pbi.error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"parameters\\\":{\\\"ErrorMessage\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"},\\\"details\\\":[{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"detail\\\":{\\\"type\\\":1,\\\"value\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"}}]}}}\"}",
+            "status": "Failed",
+            "refreshAttempts": [
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T08:55:39.1816889Z",
+                    "endTime": "2026-07-20T08:55:58.9514731Z",
+                    "type": "Data",
+                    "serviceExceptionJson": "{\"errorCode\":\"ModelRefresh_ShortMessage_ProcessingError\",\"errorDescription\":\"{\\\"error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"pbi.error\\\":{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"parameters\\\":{\\\"ErrorMessage\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"},\\\"details\\\":[{\\\"code\\\":\\\"CrossWorkspaceRequestNotAllowed\\\",\\\"detail\\\":{\\\"type\\\":1,\\\"value\\\":\\\"Access protector failed due to CrossWorkspaceRequestNotAllowed\\\"}}]}}}\"}",
+                    "executionMetrics": []
+                }
+            ]
+        },
+        {
+            "requestId": "06e11cbf-e04f-4b17-a2cb-f99c1ef138cd",
+            "id": 57426470,
+            "refreshType": "ViaApi",
+            "startTime": "2026-07-20T07:07:35.5Z",
+            "endTime": "2026-07-20T07:07:57.137Z",
+            "status": "Completed",
+            "refreshAttempts": [
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T07:07:35.5948585Z",
+                    "endTime": "2026-07-20T07:07:48.6336673Z",
+                    "type": "Data",
+                    "executionMetrics": []
+                },
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T07:07:49.6024116Z",
+                    "endTime": "2026-07-20T07:07:50.3367865Z",
+                    "type": "Query",
+                    "executionMetrics": []
+                }
+            ]
+        },
+        {
+            "requestId": "1ea1da89-be69-ac6d-06c0-fef39d953c43",
+            "id": 57425572,
+            "refreshType": "WebModeling",
+            "startTime": "2026-07-20T06:53:27.663Z",
+            "endTime": "2026-07-20T06:53:44.603Z",
+            "status": "Completed",
+            "extendedStatus": "Completed",
+            "refreshAttempts": [
+                {
+                    "attemptId": 1,
+                    "startTime": "2026-07-20T06:53:29.4465681Z",
+                    "endTime": "2026-07-20T06:53:44.6022099Z",
+                    "type": "Data",
+                    "executionMetrics": []
+                }
+            ]
+        }
+    ]
+}
