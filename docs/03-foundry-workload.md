@@ -27,7 +27,10 @@ Rather than duplicate the Foundry Bicep/Terraform, this layer will:
 
 ## Status
 
-Skeleton only. See `workloads/foundry/` for the Terraform entry point.
+Architecture only; the Terraform release gate is closed. The single deployment
+lifecycle and planned Layer 3 sequence are maintained in
+[DEPLOYMENT-GUIDE.md](../DEPLOYMENT-GUIDE.md#layer-3--foundry-workload). See
+`workloads/foundry/` for the future Terraform entry point.
 
 ## Dependencies
 

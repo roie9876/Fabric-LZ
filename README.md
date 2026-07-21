@@ -11,16 +11,17 @@ independent layers** so each can be developed and tested on its own.
 
 | Goal | Authoritative document |
 |---|---|
-| Deploy the solution | [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) |
+| Deploy or review the Layer 1–3 lifecycle | [DEPLOYMENT-GUIDE.md](DEPLOYMENT-GUIDE.md) |
 | Understand the overall architecture | This README and the [documentation index](docs/README.md) |
 | Understand the Fabric module | [workloads/fabric/README.md](workloads/fabric/README.md) |
 | Review the completed Fabric reference lab | [workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md) |
 | Review Layer 1 as-built evidence | [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md) |
 | Contribute without exposing environment identity | [docs/PUBLISHING.md](docs/PUBLISHING.md) |
 
-`DEPLOYMENT-GUIDE.md` is the only executable deployment sequence. Component
-READMEs describe implementation boundaries and link back to the guide rather
-than maintaining competing procedures.
+`DEPLOYMENT-GUIDE.md` is the single deployment lifecycle for all three layers.
+It contains executable procedures for released Terraform roots and explicit
+STOP gates for architecture-only layers. Component READMEs describe
+implementation boundaries and do not maintain competing procedures.
 
 ## Table of Contents
 

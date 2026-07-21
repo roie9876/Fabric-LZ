@@ -1,46 +1,59 @@
-# Customer Deployment Guide: Fabric Private Workspace
+# End-to-End Deployment Guide: Platform, Fabric, and Foundry
 
 This is the authoritative operator runbook for deploying the repository in a
-customer environment without an AI assistant. It is the only executable
-deployment sequence in the repository. Follow it from top to bottom. Do not
-skip a **STOP** gate, reuse a saved plan after changing permissions or
-variables, or restrict Workspace A public access before the final gate.
+customer environment without an AI assistant. It provides one ordered lifecycle
+for **Layer 1 (platform)**, **Layer 2 (Fabric)**, and **Layer 3 (Foundry)**.
+Follow it from top to bottom and stop at any release gate whose Terraform is not
+implemented. Do not skip a **STOP** gate or reuse a saved plan after changing
+permissions, code, or variables.
 
 The guide embeds every portal screenshot already captured during the reference
 deployment. Screenshots show the navigation and expected state; customer names,
 subscriptions, regions, CIDRs, workspace IDs, and capacity IDs will differ.
 
-For the Fabric module architecture, see
+For Layer 1 as-built evidence, see
+[platform/DEPLOYMENT.md](platform/DEPLOYMENT.md). For the Fabric architecture,
+see
 [workloads/fabric/README.md](workloads/fabric/README.md). For the completed
 Fabric reference deployment history, see
-[workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md). For
-Layer 1 as-built evidence, see
-[platform/DEPLOYMENT.md](platform/DEPLOYMENT.md).
+[workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md). For the
+Foundry target architecture and current release boundary, see
+[docs/03-foundry-workload.md](docs/03-foundry-workload.md).
 
 ## What this guide builds
 
-This is the end state you are working toward: a **private Workspace A** (network
-isolation via workspace-level Private Link) that ingests on-premises SQL into
-OneLake, and a **public Workspace B** (identity isolation via Entra Conditional
-Access) that serves the semantic model and report — with cross-workspace refresh
-flowing through a data gateway once Workspace A is locked down.
+The repository targets three cumulative layers:
+
+| Layer | Outcome | Current release status |
+|---|---|---|
+| **1 — Platform** | Governance, private state, hub/firewall, DNS Resolver, private Azure Monitor/AMPLS | **Core implemented and reference-deployed; Stages 30/50 remain stubs** |
+| **2 — Fabric** | Private Workspace A, public Workspace B, OPDG ingestion, semantic model/report | **Implemented and reference-deployed** |
+| **3 — Foundry** | Private Foundry/Agent Service, AI Search, Storage, Cosmos DB, Application Insights through AMPLS, APIM publication | **Architecture only; Terraform release gate is closed** |
+
+The shared network target is shown below. Layer 2 then adds a private Workspace
+A that ingests on-premises SQL into OneLake and a public Workspace B that serves
+the semantic model/report through an approved data gateway path.
+
+![Landing-zone layers — hub, spokes, private monitoring, and forced egress](docs/images/02-hub-spoke.png)
 
 ![Target architecture — Microsoft Fabric workspace-level Private Link](docs/images/05-fabric-private-link.png)
 
-Every step below moves you toward this topology. For the full architecture
-rationale, see [workloads/fabric/README.md](workloads/fabric/README.md#topology).
+Layer 3 extends the Foundry spoke shown in the landing-zone diagram. Its section
+defines the implementation contract and STOP gate until deployable Terraform is
+added to `workloads/foundry`.
 
 ## Contents
 
-- [Scope and release boundary](#scope-and-release-boundary)
+- [Layer status and release boundary](#scope-and-release-boundary)
 - [Required operator inputs](#required-operator-inputs)
 - [Day-0 readiness gate](#day-0-readiness-gate)
 - [Reference lab checkpoint](#reference-lab-checkpoint-do-not-copy-to-a-customer)
 - [Execution model](#execution-model)
-- [Deployment timeline](#timeline)
+- [Layer 1 — Platform foundation](#layer-1--platform-foundation)
   - [1. Prepare the operator workstation](#1-prepare-the-operator-workstation)
   - [2. Establish state and Layer 1](#2-establish-private-terraform-state-and-deploy-layer-1)
   - [3. Validate the network handoff](#3-validate-the-customer-network-handoff)
+- [Layer 2 — Fabric private workspace](#layer-2--fabric-private-workspace)
   - [4. Complete Fabric tenant prerequisites](#4-complete-fabric-tenant-prerequisites)
   - [5. Deploy Fabric Phase A](#5-terraform-phase-a-fabric-foundation)
   - [6. Create both workspaces](#6-create-both-fabric-workspaces)
@@ -53,6 +66,9 @@ rationale, see [workloads/fabric/README.md](workloads/fabric/README.md#topology)
   - [13. Run pre-lockdown validation](#13-phase-8-final-pre-lockdown-validation)
   - [14. Restrict Workspace A](#14-phase-9-restrict-workspace-a-last)
   - [15. Pause nonproduction resources](#15-pause-nonproduction-resources-when-idle)
+- [Layer 3 — Foundry workload](#layer-3--foundry-workload)
+  - [16. Foundry implementation release gate](#16-foundry-implementation-release-gate)
+  - [17. Planned Foundry deployment sequence](#17-planned-foundry-deployment-sequence)
 - [Evidence acceptance criteria](#evidence-acceptance-criteria)
 - [Rollback order](#rollback-order)
 - [Troubleshooting matrix](#troubleshooting-matrix)
@@ -61,16 +77,19 @@ rationale, see [workloads/fabric/README.md](workloads/fabric/README.md#topology)
 
 ## Scope and release boundary
 
-This repository deploys:
+This repository currently provides:
 
 - Implemented Layer 1 roots: state storage, management-group hierarchy, hub
-  VNet, Azure Firewall, Private DNS Resolver, and Log Analytics workspace.
+  VNet, Azure Firewall, Private DNS Resolver, private Log Analytics workspace,
+  AMPLS, Azure Monitor private endpoint, and private DNS integration.
 - Fabric Phase A: F capacity, Fabric spoke, UDR, hub peerings, diagnostics, and
   the workspace-level Private Link DNS zone.
 - Fabric Phase B: the hidden workspace Private Link service, private endpoint,
   and DNS zone group.
 - Optional **lab-only** SQL Server and OPDG Windows VMs in an existing simulated
   on-premises VNet.
+- Layer 3 Foundry architecture and deployment acceptance contract. The current
+  `workloads/foundry` root is a skeleton and must not be applied as a workload.
 
 This repository does **not** deploy the following customer production
 dependencies. Their owners must complete and sign them off before the matching
@@ -139,23 +158,25 @@ the mode badge at the start of every step before you begin.
 
 ### Mode at a glance
 
-| # | Step | Mode |
-|---|---|---|
-| 1 | Prepare the operator workstation | ⬜ PREP (LAPTOP) |
-| 2 | Establish private state + deploy Layer 1 | 🟦 TERRAFORM (RUNNER) |
-| 3 | Validate the customer network handoff | ⬜ VALIDATE (CHECK) |
-| 4 | Complete Fabric tenant prerequisites | 🟨 MANUAL (PORTAL) |
-| 5 | Terraform Phase A: Fabric foundation | 🟦 TERRAFORM (RUNNER) |
-| 6 | Create both Fabric workspaces | 🟨 MANUAL (PORTAL) |
-| 7 | Grant the runner workspace access | 🟨 MANUAL (PORTAL/API) |
-| 8 | Terraform Phase B: workspace Private Link | 🟦 TERRAFORM (RUNNER) |
-| 9 | Prepare the SQL Server and OPDG hosts | 🟦 TERRAFORM (RUNNER)* |
-| 10 | Phase 5: install and register OPDG | 🟨 MANUAL (OPDG host) |
-| 11 | Phase 6: private lakehouse + ingest SQL | 🟨 MANUAL (PORTAL) |
-| 12 | Phase 7: semantic model + report | 🟨 MANUAL (PORTAL) |
-| 13 | Phase 8: pre-lockdown validation | ⬜ VALIDATE (CHECK) |
-| 14 | Phase 9: restrict Workspace A | 🟨 MANUAL (PORTAL) |
-| 15 | Pause nonproduction resources | 🟨 MANUAL (PORTAL) |
+| Layer | # | Step | Mode / status |
+|---|---:|---|---|
+| 1 | 1 | Prepare the operator workstation | ⬜ PREP (LAPTOP) |
+| 1 | 2 | Establish private state + deploy Layer 1 | 🟦 TERRAFORM (RUNNER) |
+| 1 | 3 | Validate the customer network handoff | ⬜ VALIDATE (CHECK) |
+| 2 | 4 | Complete Fabric tenant prerequisites | 🟨 MANUAL (PORTAL) |
+| 2 | 5 | Terraform Phase A: Fabric foundation | 🟦 TERRAFORM (RUNNER) |
+| 2 | 6 | Create both Fabric workspaces | 🟨 MANUAL (PORTAL) |
+| 2 | 7 | Grant the runner workspace access | 🟨 MANUAL (PORTAL/API) |
+| 2 | 8 | Terraform Phase B: workspace Private Link | 🟦 TERRAFORM (RUNNER) |
+| 2 | 9 | Prepare the SQL Server and OPDG hosts | 🟦 TERRAFORM (RUNNER)* |
+| 2 | 10 | Phase 5: install and register OPDG | 🟨 MANUAL (OPDG host) |
+| 2 | 11 | Phase 6: private lakehouse + ingest SQL | 🟨 MANUAL (PORTAL) |
+| 2 | 12 | Phase 7: semantic model + report | 🟨 MANUAL (PORTAL) |
+| 2 | 13 | Phase 8: pre-lockdown validation | ⬜ VALIDATE (CHECK) |
+| 2 | 14 | Phase 9: restrict Workspace A | 🟨 MANUAL (PORTAL) |
+| 2 | 15 | Pause nonproduction resources | 🟨 MANUAL (PORTAL) |
+| 3 | 16 | Foundry implementation release gate | **STOP — Terraform not implemented** |
+| 3 | 17 | Deploy and validate private Foundry | Planned sequence; not executable yet |
 
 \* Step 9 uses Terraform only for the **lab** SQL/OPDG hosts. In a customer
 environment these are customer-owned production hosts (manual).
@@ -171,14 +192,18 @@ flowchart TD
     S7 --> S8["8. Phase B: workspace Private Link<br/>🟦 TERRAFORM"]
     S8 --> S9["9. Prepare SQL + OPDG hosts<br/>🟦 TERRAFORM lab / 🟨 MANUAL cust."]
     S9 --> S10["10. Phase 5: install + register OPDG<br/>🟨 MANUAL host"]
-    S10 --> S11["11-15. Phase 6-9<br/>🟨 MANUAL portal"]
+    S10 --> S11["11-15. Complete Fabric lifecycle<br/>🟨 MANUAL + VALIDATE"]
+    S11 --> S16["16. Foundry implementation gate<br/>STOP — not executable"]
+    S16 -. "after Foundry Terraform release" .-> S17["17. Deploy private Foundry<br/>planned Layer 3 sequence"]
 
     classDef tf fill:#e3f0ff,stroke:#2b6cb0,color:#1a365d;
     classDef manual fill:#fff7e0,stroke:#b7791f,color:#744210;
     classDef prep fill:#f0f0f0,stroke:#888,color:#333;
+    classDef blocked fill:#fde8e8,stroke:#c53030,color:#742a2a;
     class S2,S5,S8 tf;
     class S4,S6,S7,S10,S11 manual;
     class S1,S3,S9 prep;
+    class S16,S17 blocked;
 ```
 
 ### About the reference screenshots in this guide
@@ -354,7 +379,7 @@ After every apply, rerun the same plan with `-detailed-exitcode`. Continue only
 when it returns `0`. If code, variables, identity, or permissions change after a
 plan is saved, delete that plan and create a new one.
 
-## Timeline
+## Layer 1 — Platform foundation
 
 ### 1. Prepare the operator workstation
 
@@ -414,11 +439,11 @@ subcode_fabric       = "<fabric-code>"
 
 hub_vnet_cidr = "<hub-cidr>"
 subnet_prefixes = {
-  firewall     = "<azure-firewall-subnet-cidr>"
-  gateway      = "<gateway-subnet-cidr>"
-  dns_inbound  = "<dns-inbound-subnet-cidr>"
-  dns_outbound = "<dns-outbound-subnet-cidr>"
-  egress_swg   = "<egress-swg-subnet-cidr>"
+  firewall                 = "<azure-firewall-subnet-cidr>"
+  dns_inbound              = "<dns-inbound-subnet-cidr>"
+  dns_outbound             = "<dns-outbound-subnet-cidr>"
+  egress_swg               = "<egress-swg-subnet-cidr>"
+  monitor_private_endpoint = "<azure-monitor-private-endpoint-subnet-cidr>"
 }
 enable_ddos = true
 
@@ -699,6 +724,8 @@ tests.
 
 **STOP:** do not deploy the Fabric spoke until the customer network owner signs
 off routing, DNS, and egress.
+
+## Layer 2 — Fabric private workspace
 
 ### 4. Complete Fabric tenant prerequisites
 
@@ -1840,6 +1867,103 @@ Pausing F2 stops Fabric compute billing. VM deallocation stops VM compute
 billing. Azure Firewall, NAT Gateway, disks, public IPs, Private
 Endpoints, DNS, state storage, and OneLake storage continue to incur charges.
 
+## Layer 3 — Foundry workload
+
+Layer 3 extends the shared Layer 1 platform with a private Foundry spoke,
+network-injected Agent Service, private supporting PaaS services, and APIM
+publication. It consumes the private Azure Monitor foundation already deployed
+in Stage 40 rather than creating another AMPLS or duplicate Monitor DNS zones.
+
+### 16. Foundry implementation release gate
+
+> **Mode: STOP — NOT EXECUTABLE IN THIS RELEASE.** The current
+> `workloads/foundry` folder contains documentation only. Do not create Foundry
+> resources manually and do not run `terraform apply` from that folder.
+
+Layer 3 becomes executable only after all of the following are committed and
+validated:
+
+- A dedicated Terraform backend key and complete provider configuration,
+  including aliases when connectivity, monitoring, APIM, and workloads use
+  different subscriptions.
+- Foundry spoke VNet, hub peerings, forced-egress UDR, dedicated Agent Service
+  subnet delegated to `Microsoft.App/environments`, and private-endpoint subnet.
+- Private endpoints and central Private DNS integration for Foundry, Azure AI
+  Search, Storage, Cosmos DB, Container Registry when used, and any private
+  agent tools.
+- A workspace-based Application Insights component linked to the central Log
+  Analytics workspace, with public ingestion/query disabled and an association
+  to the existing central AMPLS.
+- Foundry account/project and Standard Agent configuration using BYO Storage,
+  Search, Cosmos DB, managed identities, and virtual-network injection.
+- Private or VNet-integrated APIM configuration. The automatically public
+  Foundry-created AI Gateway is not acceptable for this architecture.
+- Firewall rules, RBAC, private DNS validation, rollback steps, and screenshots
+  for every final applied state.
+- A reviewed Terraform plan with no replacements or unrelated changes, followed
+  by a detailed-exit-code plan returning `0` after apply.
+
+The current Microsoft documentation states that the native Foundry **Traces**
+experience does not support a private Application Insights resource. Private
+OpenTelemetry ingestion from network-injected application code is the target,
+but native server-side traces and trace-based evaluations remain a separate
+product-capability gate.
+
+**STOP:** do not proceed to Step 17 until `workloads/foundry` contains reviewed,
+validated Terraform and this section is updated from **NOT EXECUTABLE** to the
+released root version and commit.
+
+### 17. Planned Foundry deployment sequence
+
+Once Step 16 is released, Layer 3 must follow this order:
+
+1. **Prepare inputs and providers.** Confirm region support, quotas, subscription
+   ownership, non-overlapping CIDRs, resource-provider registrations, and the
+   runner's cross-subscription RBAC.
+2. **Deploy the Foundry network foundation.** Create the spoke, dedicated agent
+   and private-endpoint subnets, bidirectional hub peering, UDR to the hub
+   firewall, and links to centrally owned private DNS zones.
+3. **Deploy private BYO dependencies.** Create Storage, Azure AI Search, Cosmos
+   DB, Key Vault/Container Registry when required, private endpoints, managed
+   identities, and least-privilege data-plane roles. Disable public access only
+   after private connectivity succeeds.
+4. **Attach private observability.** Create workspace-based Application
+   Insights, link it to the central Log Analytics workspace, associate it with
+   `azure_monitor_private_link_scope_id`, reuse
+   `azure_monitor_private_dns_zone_ids`, and validate private OpenTelemetry
+   ingestion and query.
+5. **Deploy Foundry and Agent Service.** Create the Foundry account/project with
+   public network access disabled, configure Standard Agent BYO resources, and
+   inject agent compute into the delegated subnet. Outbound settings and the
+   delegated subnet must be correct at initial creation because current service
+   limitations can require redeployment to change them.
+6. **Publish through APIM.** Configure the approved private APIM/AI Gateway path,
+   managed identity, backend connectivity, policies, and private DNS. Do not use
+   a public gateway as a production shortcut.
+7. **Run the final private validation.** From the runner and an approved private
+   client, prove private DNS, TCP 443, Foundry project/API access, model calls,
+   Search/Storage/Cosmos access, agent tool execution, APIM invocation,
+   Application Insights ingestion, Log Analytics query, and firewall logging.
+
+Required Layer 3 acceptance evidence:
+
+| Area | Pass condition |
+|---|---|
+| Public access | Disabled on every PaaS service that supports it |
+| DNS | All service FQDNs resolve to expected private endpoint IPs from the Foundry spoke and runner |
+| Routing | Agent subnet egress reaches approved private endpoints or traverses the hub firewall; no unintended direct internet path |
+| Identity | Managed identities have only the required control/data-plane roles |
+| Monitoring | OpenTelemetry reaches private Application Insights; private Log Analytics queries succeed |
+| Agent | A representative agent run and approved private tool call succeed |
+| APIM | Private client invocation succeeds through the governed gateway path |
+| Terraform | Final detailed-exit-code plan returns `0` |
+
+For the target design and current product constraints, see
+[docs/03-foundry-workload.md](docs/03-foundry-workload.md) and
+[workloads/foundry/README.md](workloads/foundry/README.md). Replace this planned
+sequence with exact RUNNER/PORTAL commands and captured screenshots as each
+Foundry implementation phase is committed.
+
 ## Evidence acceptance criteria
 
 For every manual portal action, capture the **final applied state after a page
@@ -1855,15 +1979,22 @@ refresh**, not only the form before Save/Apply. Each evidence item must include:
 
 The embedded screenshots are reference examples from the reference lab. Customer
 evidence must be captured in the customer environment. In the reference lab,
-Phases 1-9 have been executed and their screenshots captured (Layer 1 01-13,
+Layers 1–2 have been executed and their screenshots captured (Layer 1 01-14,
 OPDG opdg-01..11, Phase 6 12-15 + walkthrough, Phase 7 16-18 + walkthrough,
-Phase 9 lockdown 19, and end-to-end proof 20). A customer run must re-capture
-these in the customer tenant.
+Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 has no deployment
+evidence because its release gate is closed. A customer run must re-capture all
+released-layer evidence in the customer tenant.
 
 ## Rollback order
 
 Rollback in reverse dependency order. Never destroy a shared hub, backend,
 capacity, connection, or gateway because one workload test failed.
+
+After Layer 3 is released, its implementation must add an approved rollback
+sequence before this Layer 2 order: disable APIM publication, stop/remove only
+new agents, disconnect Application Insights from the project/AMPLS as permitted,
+remove Foundry private endpoints and BYO dependencies in reverse order, then
+remove the Foundry spoke. No Layer 3 rollback is executable in this release.
 
 1. **Workspace lockdown:** restore Workspace A public access to `Allow` from a
   private/allowed client; verify recovery.
@@ -1934,6 +2065,7 @@ The AzureRM backend uses an Azure Blob lease. If Terraform reports a lock:
 | Fabric portal screenshots | `workloads/fabric/images/` |
 | Fabric module architecture | [workloads/fabric/README.md](workloads/fabric/README.md) |
 | Fabric reference-lab history and API evidence | [workloads/fabric/REFERENCE-LAB.md](workloads/fabric/REFERENCE-LAB.md) |
+| Foundry deployment evidence | Not available; Layer 3 implementation gate is closed |
 | Architecture diagrams | `docs/diagrams/` and `docs/images/` |
 | Terraform validation | Run in each Terraform root before plan/apply |
 | Secrets check | `bash scripts/check-sensitive.sh` |

@@ -6,8 +6,8 @@ directory contains architecture, policy, and troubleshooting references.
 
 ## Deployment
 
-- [Customer Deployment Guide](../DEPLOYMENT-GUIDE.md) - authoritative
-  end-to-end operator sequence, validation gates, evidence criteria, rollback,
+- [End-to-End Deployment Guide](../DEPLOYMENT-GUIDE.md) - authoritative Layer
+  1–3 operator lifecycle, implementation gates, evidence criteria, rollback,
   and troubleshooting matrix.
 
 ## Architecture

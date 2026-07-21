@@ -6,8 +6,8 @@ Private Link, forced routing through the hub firewall, private DNS integration,
 and Fabric capacity.
 
 > **Deployment authority:** Follow
-> [../../DEPLOYMENT-GUIDE.md](../../DEPLOYMENT-GUIDE.md) for the executable
-> customer deployment sequence, portal steps, validation gates, rollback, and
+> [../../DEPLOYMENT-GUIDE.md](../../DEPLOYMENT-GUIDE.md) for the unified Layer
+> 1–3 deployment lifecycle, Fabric portal steps, validation gates, rollback, and
 > evidence requirements. This README describes the module; it is not a second
 > runbook.
 
@@ -15,7 +15,7 @@ and Fabric capacity.
 
 | Need | Document |
 |---|---|
-| Deploy the solution | [Customer Deployment Guide](../../DEPLOYMENT-GUIDE.md) |
+| Deploy the solution | [End-to-End Deployment Guide](../../DEPLOYMENT-GUIDE.md) |
 | Understand the Fabric topology | This README |
 | Review the completed reference lab | [REFERENCE-LAB.md](REFERENCE-LAB.md) |
 | Troubleshoot post-lockdown refresh | [Cross-workspace private refresh](../../docs/fabric-cross-workspace-private-refresh.md) |
