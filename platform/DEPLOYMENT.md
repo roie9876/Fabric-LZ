@@ -129,6 +129,8 @@ query data planes are private through the central AMPLS endpoint.
 - **Public query:** Disabled
 - **Local authentication:** Disabled
 
+![Log Analytics network isolation — public access disabled](../docs/deployment-reference/tf-layer1-09-law-network-isolation.png)
+
 The Azure Monitor Private Link Scope
 `azr-sbx-lab-0001-ampls-central` is provisioned globally with one approved
 private endpoint and the central workspace as its scoped resource.
@@ -147,6 +149,10 @@ private endpoint and the central workspace as its scoped resource.
 - **Private DNS:** Monitor, OMS, ODS and Agent Service zones in the hub resource
   group; the existing hub-linked Blob zone is reused from the on-prem simulation
   resource group so Terraform-state records remain authoritative.
+
+![AMPLS private endpoint — Approved](../docs/deployment-reference/tf-layer1-13-ampls-private-endpoint.png)
+
+![AMPLS private DNS configuration — five zones](../docs/deployment-reference/tf-layer1-14-ampls-dns-zones.png)
 
 Private-runner validation confirmed private resolution and TCP 443 for the
 Monitor API, Application Insights ingestion, Log Analytics ingestion/query, and

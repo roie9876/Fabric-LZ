@@ -641,6 +641,18 @@ the central Log Analytics workspace as a scoped resource.
 
 ![Layer 1 — AMPLS access modes](docs/deployment-reference/tf-layer1-12-ampls-access-modes.png)
 
+**AMPLS private endpoint** — deployed in the hub `AzureMonitorPrivateEndpointSubnet`,
+connection state **Approved**, targeting the `azuremonitor` sub-resource.
+
+![Layer 1 — AMPLS private endpoint](docs/deployment-reference/tf-layer1-13-ampls-private-endpoint.png)
+
+**AMPLS private DNS integration** — the endpoint registers the Azure Monitor
+FQDNs to private IPs across all five required zones (`privatelink.monitor.azure.com`,
+`privatelink.oms.opinsights.azure.com`, `privatelink.ods.opinsights.azure.com`,
+`privatelink.agentsvc.azure-automation.net`, and `privatelink.blob.core.windows.net`).
+
+![Layer 1 — AMPLS private DNS zones](docs/deployment-reference/tf-layer1-14-ampls-dns-zones.png)
+
 ### 3. Validate the customer network handoff
 
 > **Mode: ⬜ VALIDATE (CHECK)** — read-only connectivity checks; no resources created.
