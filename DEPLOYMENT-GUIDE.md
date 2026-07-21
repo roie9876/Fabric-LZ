@@ -1673,6 +1673,34 @@ change record. This is the final go/no-go review.
   to a data gateway — see
   [`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md).
 
+**Required fix — bind the Workspace B model to the gateway (do this now):**
+
+This keeps the public report refreshing while Workspace A stays private. Do it
+right after lockdown. Full root cause, DNS chain, and Microsoft citations are in
+[`docs/fabric-cross-workspace-private-refresh.md`](docs/fabric-cross-workspace-private-refresh.md).
+
+1. **Build the workspace-private server name.** Take Workspace A's object ID,
+   delete the dashes, and read the **first two characters**. Prefix them with the
+   literal letter `z` to get the label `z{xy}` (lab: ID `a20cea33...` -> `za2`).
+   Insert `.z{xy}` into the SQL analytics endpoint host, between the hash and
+   `datawarehouse`, leaving everything else unchanged:
+   `<hash>.z{xy}.datawarehouse.fabric.microsoft.com` (lab:
+   `yzg45...af3lh5a.za2.datawarehouse.fabric.microsoft.com`).
+2. **Create the gateway connection.** In **Manage connections and gateways** >
+   **+ New**, choose **On-premises**, pick the OPDG cluster (lab:
+   `azlab-gateway`), set **Connection type = SQL Server**, **Server** = the
+   `z{xy}` host from step 1, **Database** = the lakehouse name (lab:
+   `lh_onprem_private`), and **Authentication = OAuth 2.0**. Leave **Skip test
+   connection** unchecked; the test must pass.
+3. **Bind the model to the connection.** In **Workspace B** > semantic model >
+   **Settings** > **Gateway and cloud connections**, enable **Gateway
+   connections** and map the SQL source to the connection from step 2. (API
+   equivalent: `Default.BindToGateway`; if the model still points at the public
+   host, first repoint its datasource server to the `z{xy}` host via
+   `Default.UpdateDatasources` so both server strings match.)
+4. **Refresh and verify.** Trigger a refresh and confirm it shows **Completed**
+   with no `CrossWorkspaceRequestNotAllowed`.
+
 **End-to-end proof — new on-prem data reaching the public report while A stays
 private (2026-07-20):** after applying the gateway fix above, a new on-prem row
 (`Northwind Traders`, 1500.00) was pushed through both hops and appeared in the

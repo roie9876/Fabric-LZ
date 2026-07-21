@@ -67,21 +67,45 @@ Microsoft publishes two step-by-step walkthroughs for exactly this topology:
 Because this lab already runs an OPDG (`azlab-gateway`) inside the private
 network, the OPDG pattern applies.
 
-### Step 1 — Use the workspace-private connection string (mandatory)
+### Step 1 — Build the workspace-private connection string (mandatory)
 
-The ordinary SQL analytics endpoint host
-(`<hash>.datawarehouse.fabric.microsoft.com`) does **not** resolve over
-workspace-level private links. You must insert the `z{xy}` segment, where `{xy}`
-is the first two characters of Workspace A's object ID:
+The normal warehouse hostname you copy from the portal
+(`<hash>.datawarehouse.fabric.microsoft.com`) **stops working** once Workspace A
+is private. You must insert one extra label — **`z{xy}`** — into that hostname.
+Read this even if you have never touched DNS before; it is just string surgery.
 
-```
-Public  : yzg45hohc3cerh2xkkexzrnism-gpvaziweggiefdfn2z4af3lh5a.datawarehouse.fabric.microsoft.com
-Private : yzg45hohc3cerh2xkkexzrnism-gpvaziweggiefdfn2z4af3lh5a.za2.datawarehouse.fabric.microsoft.com
-                                                                 ^^^  z + first two chars of workspace ID (a2)
-```
+**What `z{xy}` means (the recipe):**
 
-Workspace A ID = `a20cea33-...` -> no dashes `a20cea33...` -> `z` + `a2` = `za2`.
-Database = the lakehouse name (`lh_onprem_private`) or the lakehouse GUID.
+1. **`z`** is always the literal letter `z`. It never changes.
+2. **`{xy}`** is the **first two characters of Workspace A's object ID, after you
+   delete the dashes**.
+
+**Worked example — Workspace A ID `a20cea33-31c4-4290-8cad-d67802ed67e8`:**
+
+| Step | Do this | Result |
+|---|---|---|
+| 1 | Remove the dashes from the ID | `a20cea3331c4...` |
+| 2 | Take the first **2** characters | **`a2`** |
+| 3 | Put a `z` in front of those two characters | **`za2`** |
+
+So for this workspace the label is **`za2`**.
+
+**Where the label goes** — insert `.za2` between the hash and `datawarehouse`.
+Everything else in the hostname stays **exactly** the same:
+
+| Which name | Hostname |
+|---|---|
+| **Public** (fails when private) | `yzg45...af3lh5a.datawarehouse.fabric.microsoft.com` |
+| **Private** (this is the one to use) | `yzg45...af3lh5a`**`.za2`**`.datawarehouse.fabric.microsoft.com` |
+
+**What you actually type into the gateway connection:**
+
+- **Server** = the **private** hostname above (the one that contains `.za2.`).
+- **Database** = the lakehouse name (`lh_onprem_private`) or the lakehouse GUID.
+
+> **Plain-English summary:** the public name is the blocked front door. Adding
+> `z` + the workspace ID's first two characters is like writing the workspace's
+> private apartment number on the envelope so the private link can deliver it.
 
 > "You need to add `z{xy}` to the regular warehouse connection string ... This
 > FQDN isn't available as part of the DNS configurations for the private
