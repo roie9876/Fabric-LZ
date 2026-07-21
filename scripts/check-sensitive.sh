@@ -24,8 +24,10 @@ PRIVATE_DENYLIST="${ROOT}/_private/denylist.txt"
 # (Generic — safe to publish. Add customer-specific terms to the private file.)
 BASELINE_PATTERNS=(
   # Real Azure identifiers should never be committed outside *.example files.
-  'subscription_id[[:space:]]*=[[:space:]]*"[0-9a-f]{8}-'
-  'tenant_id[[:space:]]*=[[:space:]]*"[0-9a-f]{8}-'
+  'subscription_id[[:alnum:]_]*[[:space:]]*=[[:space:]]*"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"'
+  'tenant_id[[:alnum:]_]*[[:space:]]*=[[:space:]]*"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"'
+  'subscriptions?(_?id)?[^[:alnum:]]{0,16}"?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+  '[[:alnum:]._%+-]+@[[:alnum:].-]+\.onmicrosoft\.com'
 )
 
 # Load private, customer-specific patterns if available.

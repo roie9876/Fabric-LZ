@@ -67,8 +67,11 @@ added to `workloads/foundry`.
   - [14. Restrict Workspace A](#14-phase-9-restrict-workspace-a-last)
   - [15. Pause nonproduction resources](#15-pause-nonproduction-resources-when-idle)
 - [Layer 3 — Foundry workload](#layer-3--foundry-workload)
-  - [16. Foundry implementation release gate](#16-foundry-implementation-release-gate)
-  - [17. Planned Foundry deployment sequence](#17-planned-foundry-deployment-sequence)
+  - [16. Validate Layer 3 prerequisites](#16-validate-layer-3-prerequisites)
+  - [17. Deploy private Foundry foundation](#17-deploy-private-foundry-foundation)
+  - [18. Deploy private APIM AI Gateway](#18-deploy-private-apim-ai-gateway)
+  - [19. Deploy the Foundry Hosted Agent](#19-deploy-the-foundry-hosted-agent)
+  - [20. Run final Layer 3 validation](#20-run-final-layer-3-validation)
 - [Evidence acceptance criteria](#evidence-acceptance-criteria)
 - [Rollback order](#rollback-order)
 - [Troubleshooting matrix](#troubleshooting-matrix)
@@ -175,8 +178,11 @@ the mode badge at the start of every step before you begin.
 | 2 | 13 | Phase 8: pre-lockdown validation | ⬜ VALIDATE (CHECK) |
 | 2 | 14 | Phase 9: restrict Workspace A | 🟨 MANUAL (PORTAL) |
 | 2 | 15 | Pause nonproduction resources | 🟨 MANUAL (PORTAL) |
-| 3 | 16 | Foundry implementation release gate | **STOP — Terraform not implemented** |
-| 3 | 17 | Deploy and validate private Foundry | Planned sequence; not executable yet |
+| 3 | 16 | Validate Foundry region, quota, providers, runner, and CIDRs | ⬜ VALIDATE (CHECK) |
+| 3 | 17 | Deploy Template 19 private Foundry foundation | 🟦 TERRAFORM (RUNNER) |
+| 3 | 18 | Deploy APIM Standard v2 private AI Gateway | 🟦 TERRAFORM (RUNNER) |
+| 3 | 19 | Deploy Responses Hosted Agent with private Search | 🟦 AZD (PRIVATE CLIENT) |
+| 3 | 20 | Validate private agent, gateway, telemetry, DNS, and drift | ⬜ VALIDATE (CHECK) |
 
 \* Step 9 uses Terraform only for the **lab** SQL/OPDG hosts. In a customer
 environment these are customer-owned production hosts (manual).
@@ -193,8 +199,11 @@ flowchart TD
     S8 --> S9["9. Prepare SQL + OPDG hosts<br/>🟦 TERRAFORM lab / 🟨 MANUAL cust."]
     S9 --> S10["10. Phase 5: install + register OPDG<br/>🟨 MANUAL host"]
     S10 --> S11["11-15. Complete Fabric lifecycle<br/>🟨 MANUAL + VALIDATE"]
-    S11 --> S16["16. Foundry implementation gate<br/>STOP — not executable"]
-    S16 -. "after Foundry Terraform release" .-> S17["17. Deploy private Foundry<br/>planned Layer 3 sequence"]
+    S11 --> S16["16. Validate Layer 3 prerequisites<br/>⬜ VALIDATE"]
+    S16 --> S17["17. Private Foundry foundation<br/>🟦 TERRAFORM"]
+    S17 --> S18["18. Private APIM AI Gateway<br/>🟦 TERRAFORM"]
+    S18 --> S19["19. Foundry Hosted Agent<br/>🟦 AZD"]
+    S19 --> S20["20. Layer 3 acceptance<br/>⬜ VALIDATE"]
 
     classDef tf fill:#e3f0ff,stroke:#2b6cb0,color:#1a365d;
     classDef manual fill:#fff7e0,stroke:#b7791f,color:#744210;
@@ -203,7 +212,9 @@ flowchart TD
     class S2,S5,S8 tf;
     class S4,S6,S7,S10,S11 manual;
     class S1,S3,S9 prep;
-    class S16,S17 blocked;
+    class S17,S18 tf;
+    class S16,S20 prep;
+    class S19 manual;
 ```
 
 ### About the reference screenshots in this guide
@@ -1874,95 +1885,301 @@ network-injected Agent Service, private supporting PaaS services, and APIM
 publication. It consumes the private Azure Monitor foundation already deployed
 in Stage 40 rather than creating another AMPLS or duplicate Monitor DNS zones.
 
-### 16. Foundry implementation release gate
+### 16. Validate Layer 3 prerequisites
 
-> **Mode: STOP — NOT EXECUTABLE IN THIS RELEASE.** The current
-> `workloads/foundry` folder contains documentation only. Do not create Foundry
-> resources manually and do not run `terraform apply` from that folder.
+> **Mode: ⬜ VALIDATE (LAPTOP/RUNNER)** — no workload resources created.
 
-Layer 3 becomes executable only after all of the following are committed and
-validated:
+The reference deployment uses Microsoft Template 19, pinned in
+`workloads/foundry/UPSTREAM_COMMIT`, with these approved values:
 
-- A dedicated Terraform backend key and complete provider configuration,
-  including aliases when connectivity, monitoring, APIM, and workloads use
-  different subscriptions.
-- Foundry spoke VNet, hub peerings, forced-egress UDR, dedicated Agent Service
-  subnet delegated to `Microsoft.App/environments`, and private-endpoint subnet.
-- Private endpoints and central Private DNS integration for Foundry, Azure AI
-  Search, Storage, Cosmos DB, Container Registry when used, and any private
-  agent tools.
-- A workspace-based Application Insights component linked to the central Log
-  Analytics workspace, with public ingestion/query disabled and an association
-  to the existing central AMPLS.
-- Foundry account/project and Standard Agent configuration using BYO Storage,
-  Search, Cosmos DB, managed identities, and virtual-network injection.
-- Private or VNet-integrated APIM configuration. The automatically public
-  Foundry-created AI Gateway is not acceptable for this architecture.
-- Firewall rules, RBAC, private DNS validation, rollback steps, and screenshots
-  for every final applied state.
-- A reviewed Terraform plan with no replacements or unrelated changes, followed
-  by a detailed-exit-code plan returning `0` after apply.
+| Setting | Reference value |
+|---|---|
+| Region | Sweden Central |
+| Foundry spoke | `10.3.0.0/16` |
+| Agent / PE / tools subnets | `10.3.0.0/24`, `10.3.1.0/24`, `10.3.2.0/24` |
+| APIM integration subnet | `10.3.3.0/27` |
+| Search | Standard (S1), two replicas, one partition |
+| Model | gpt-5-mini `2025-08-07`, GlobalStandard, capacity 40 |
+| Hosted Agent | Responses protocol with private AI Search grounding |
 
-The current Microsoft documentation states that the native Foundry **Traces**
-experience does not support a private Application Insights resource. Private
-OpenTelemetry ingestion from network-injected application code is the target,
-but native server-side traces and trace-based evaluations remain a separate
-product-capability gate.
+Verify providers, quota, APIM/Search availability, CIDR overlap, and Terraform
+`>=1.10`. The reference runner was upgraded to Terraform `1.13.5` after SHA256
+verification. Sweden Central supports Hosted Agents, Class A injection, Search
+agentic retrieval, and APIM Standard v2. Premium v2 new-instance capacity is
+currently restricted in this region.
 
-**STOP:** do not proceed to Step 17 until `workloads/foundry` contains reviewed,
-validated Terraform and this section is updated from **NOT EXECUTABLE** to the
-released root version and commit.
+**Azure AI Search service quota:** regional SKU availability does not guarantee
+subscription quota. Query the Search usage endpoint or open **Azure portal >
+Quotas > Overview > Search**, select the workload subscription, and filter the
+region to **Sweden Central**. Record the target subscription's Standard-tier
+usage and limit before deployment. Standard Agent setup does not require S3;
+use the approved target tier with the required replicas and partitions.
 
-### 17. Planned Foundry deployment sequence
+**STOP:** do not plan until every provider is Registered, model quota exists,
+Search Standard quota is available, `10.3.0.0/16` is non-overlapping, and the
+private runner can reach its backend and Terraform Registry.
 
-Once Step 16 is released, Layer 3 must follow this order:
+### 17. Deploy private Foundry foundation
 
-1. **Prepare inputs and providers.** Confirm region support, quotas, subscription
-   ownership, non-overlapping CIDRs, resource-provider registrations, and the
-   runner's cross-subscription RBAC.
-2. **Deploy the Foundry network foundation.** Create the spoke, dedicated agent
-   and private-endpoint subnets, bidirectional hub peering, UDR to the hub
-   firewall, and links to centrally owned private DNS zones.
-3. **Deploy private BYO dependencies.** Create Storage, Azure AI Search, Cosmos
-   DB, Key Vault/Container Registry when required, private endpoints, managed
-   identities, and least-privilege data-plane roles. Disable public access only
-   after private connectivity succeeds.
-4. **Attach private observability.** Create workspace-based Application
-   Insights, link it to the central Log Analytics workspace, associate it with
-   `azure_monitor_private_link_scope_id`, reuse
-   `azure_monitor_private_dns_zone_ids`, and validate private OpenTelemetry
-   ingestion and query.
-5. **Deploy Foundry and Agent Service.** Create the Foundry account/project with
-   public network access disabled, configure Standard Agent BYO resources, and
-   inject agent compute into the delegated subnet. Outbound settings and the
-   delegated subnet must be correct at initial creation because current service
-   limitations can require redeployment to change them.
-6. **Publish through APIM.** Configure the approved private APIM/AI Gateway path,
-   managed identity, backend connectivity, policies, and private DNS. Do not use
-   a public gateway as a production shortcut.
-7. **Run the final private validation.** From the runner and an approved private
-   client, prove private DNS, TCP 443, Foundry project/API access, model calls,
-   Search/Storage/Cosmos access, agent tool execution, APIM invocation,
-   Application Insights ingestion, Log Analytics query, and firewall logging.
+> **Mode: 🟦 TERRAFORM (RUNNER)** — Template 19 adaptation with isolated state
+> key `workloads-foundry.tfstate`.
 
-Required Layer 3 acceptance evidence:
+```bash
+cd /home/azureuser/lz/workloads/foundry
+export ARM_USE_MSI=true
+export FOUNDRY_BACKEND_FILE=../../_private/backend.hcl
+export FOUNDRY_TFVARS_FILE=../../_private/foundry.private.tfvars
+terraform init -reconfigure -backend-config="$FOUNDRY_BACKEND_FILE"
+terraform validate
+terraform plan -var-file="$FOUNDRY_TFVARS_FILE" -out=foundry.tfplan
+terraform show -no-color foundry.tfplan
+# Review: no destroy/replacement/public-access changes.
+terraform apply foundry.tfplan
+terraform plan -detailed-exitcode -var-file="$FOUNDRY_TFVARS_FILE"
+```
+
+The shared backend remains authoritative because the Foundry root has its own
+`workloads-foundry.tfstate` key. Use the dedicated Layer 3 tfvars file rather
+than the broader Layer 1/2 overlay. Verify the active subscription immediately
+before init. Do not place operator UPNs in the Foundry infrastructure tfvars.
+
+This root owns the spoke/peerings/UDR, BYO Storage/Cosmos/Search, private ACR,
+Foundry account/project/model, connections/RBAC, both capability hosts, private
+endpoints/DNS, and private Application Insights/AMPLS association.
+
+**Required screenshots (capture final refreshed state):**
+
+Layer 3 evidence follows the same standard as the local
+`Azure-AI-Foundry-Networking` reference repository: PNG, at least 1600 px wide,
+one verifiable control per image, irrelevant browser canvas cropped, and
+subscription IDs, tenant IDs, object IDs, keys, tokens, and connection strings
+redacted. Resource names, role names, FQDN patterns, subnet delegation, status,
+and error text remain visible because they are instructional evidence.
+
+Capture and retain the complete evidence set below. A phase is not documented
+as complete until every applicable file exists and is embedded after its related
+validation text.
+
+| # | Save as | Required evidence |
+|---|---|---|
+| 1 | `l3-01a-foundry-subnet-inventory.png` | Agent, PE, and MCP/tools subnet names and CIDRs |
+| 2 | `l3-01b-agent-subnet-delegation.png` | `Microsoft.App/environments`, join action, Succeeded |
+| 3 | `l3-02a-foundry-hub-peering.png` | Forwarded traffic, Connected, FullyInSync, Succeeded |
+| 4 | `l3-02b-firewall-default-route.png` | `0.0.0.0/0`, VirtualAppliance, `10.0.0.4`, Succeeded |
+| 5 | `l3-03a-private-endpoint-inventory.png` | Storage, Cosmos DB, Search, Foundry, and ACR PEs |
+| 6 | `l3-03b-private-endpoint-connections.png` | Approved connection state and expected subresources |
+| 7 | `l3-03c-private-dns-resolution.png` | Redacted private FQDN resolution to PE addresses |
+| 8 | `l3-04a-foundry-public-access-disabled.png` | Foundry public access Disabled |
+| 9 | `l3-04b-foundry-network-injection.png` | Redacted delegated `agent-subnet` binding |
+| 10 | `l3-05a-search-managed-identity.png` | Search system identity On; object ID redacted |
+| 11 | `l3-05b-search-standard-capacity.png` | Standard tier, two replicas, one partition |
+| 12 | `l3-05c-search-network-isolation.png` | Public access/local auth disabled and PE Approved |
+| 13 | `l3-05d-search-project-roles.png` | Search Service Contributor and Index Data Contributor |
+| 14 | `l3-06a-project-managed-identity.png` | Foundry project system identity; object ID redacted |
+| 15 | `l3-06b-project-connections.png` | Storage, Cosmos DB, and Search project connections |
+| 16 | `l3-06c-account-capability-host.png` | Account Agents capability host Succeeded and subnet |
+| 17 | `l3-06d-project-capability-host.png` | Project host Succeeded with all three BYO connections |
+| 18 | `l3-06e-project-resource-roles.png` | Required Storage/Cosmos/Search/ACR project-MI roles |
+| 19 | `l3-07a-foundry-appinsights-public-restricted.png` | App Insights ingestion/query public inbound restricted |
+| 20 | `l3-07b-foundry-appinsights-ampls.png` | Central AMPLS scoped-resource association |
+| 21 | `l3-07c-monitoring-reader-roles.png` | Project-MI monitoring reader roles on App Insights/LAW |
+| 22 | `l3-08a-apim-private-network.png` | Standard v2, public disabled, PE, VNet integration |
+| 23 | `l3-08b-apim-managed-identity.png` | APIM system identity and backend RBAC |
+| 24 | `l3-09a-apim-model-agent-apis.png` | Model and Hosted Agent API inventory |
+| 25 | `l3-09b-apim-ai-policies.png` | MI auth, token metrics/limits, safety, rate limiting, cache |
+| 26 | `l3-10a-hosted-agent-active.png` | Active version, Responses protocol, image, project |
+| 27 | `l3-10b-hosted-agent-identity.png` | Hosted Agent identity and least-privilege roles |
+| 28 | `l3-11a-private-search-grounded-response.png` | Successful grounded response through governed path |
+| 29 | `l3-11b-agent-byo-state.png` | Resulting Storage/Search/Cosmos data artifacts |
+| 30 | `l3-12a-private-dns-validation.png` | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor private DNS |
+| 31 | `l3-12b-firewall-runtime-rules.png` | Runtime, identity, MCR, evaluation, monitoring, APIM rules |
+| 32 | `l3-12c-private-telemetry.png` | Managed-identity telemetry in private App Insights |
+| 33 | `l3-12d-terraform-no-drift.png` | All Layer 3 roots return detailed exit code `0` |
+| 34 | `l3-13a-model-deployment.png` | gpt-5-mini version, GlobalStandard SKU, capacity, Succeeded |
+| 35 | `l3-13b-storage-network-isolation.png` | Storage public access disabled and local keys disabled |
+| 36 | `l3-13c-storage-private-endpoint.png` | Storage Blob PE Approved and DNS integration |
+| 37 | `l3-13d-cosmos-network-isolation.png` | Cosmos public/local auth disabled and private endpoint |
+| 38 | `l3-13e-acr-private-access.png` | Premium ACR public access disabled and PE Approved |
+| 39 | `l3-13f-central-private-dns.png` | Foundry/Search/Cosmos/ACR zones linked to hub and spoke |
+| 40 | `l3-13g-firewall-diagnostics.png` | Firewall allow/deny diagnostics flowing to central LAW |
+
+**Foundry subnet inventory and delegation** — the Agent and MCP/tools subnets
+are delegated to `Microsoft.App/environments`, while the PE subnet remains
+dedicated to private endpoints. Both delegated subnets use the Foundry route
+table.
+
+![Layer 3 — Foundry subnet inventory](workloads/foundry/images/l3-01a-foundry-subnet-inventory.png)
+
+![Layer 3 — Agent subnet delegation](workloads/foundry/images/l3-01b-agent-subnet-delegation.png)
+
+**Hub transit** — the Foundry-to-hub peering is Connected/FullyInSync with
+forwarded traffic enabled, and `0.0.0.0/0` routes to Azure Firewall `10.0.0.4`.
+
+![Layer 3 — Foundry-to-hub peering](workloads/foundry/images/l3-02a-foundry-hub-peering.png)
+
+![Layer 3 — default route to hub firewall](workloads/foundry/images/l3-02b-firewall-default-route.png)
+
+**Foundry resource inventory** — the resource group contains the private Foundry
+account/project, BYO Storage/Cosmos/Search, Premium ACR, VNet, route table,
+Application Insights, and private endpoints.
+
+![Layer 3 — Foundry resource inventory](workloads/foundry/images/l3-00-foundry-resource-inventory.png)
+
+**Private endpoint inventory** — all five workload private endpoints are in
+Sweden Central.
+
+![Layer 3 — private endpoint inventory](workloads/foundry/images/l3-03a-private-endpoint-inventory.png)
+
+**Foundry private endpoint connection** — the representative endpoint is in the
+`pe-subnet`, targets the Foundry `account` subresource, and is
+`Succeeded`/`Approved`. ARM validation confirms the Storage `blob`, Cosmos
+`Sql`, Search `searchService`, and ACR `registry` endpoints are also Approved.
+
+![Layer 3 — approved Foundry private endpoint](workloads/foundry/images/l3-03b-private-endpoint-connections.png)
+
+**Foundry public access** — disabled, making private endpoints the exclusive
+inbound path.
+
+![Layer 3 — Foundry public access disabled](workloads/foundry/images/l3-04a-foundry-public-access-disabled.png)
+
+**Foundry network injection** — Standard Agent is bound to the delegated
+`agent-subnet`; subscription/resource-group details are redacted.
+
+![Layer 3 — Foundry network injection](workloads/foundry/images/l3-04b-foundry-network-injection.png)
+
+**Search managed identity** — system-assigned identity is On; identifiers are
+redacted.
+
+![Layer 3 — Search managed identity](workloads/foundry/images/l3-05a-search-managed-identity.png)
+
+**Search capacity** — Standard tier, two replicas, one partition, and two search
+units, providing the read SLA baseline.
+
+![Layer 3 — Search Standard capacity](workloads/foundry/images/l3-05b-search-standard-capacity.png)
+
+**Search network and API isolation** — public network access is Disabled and API
+access control is set to role-based access only.
+
+![Layer 3 — Search public access disabled](workloads/foundry/images/l3-05c-search-network-isolation.png)
+
+![Layer 3 — Search role-based API access](workloads/foundry/images/l3-05c2-search-local-auth-disabled.png)
+
+> **Screenshot placeholder — `l3-05d-search-project-roles.png`**: project
+> identity has Search Service Contributor and Search Index Data Contributor.
+
+**Foundry project identity** — system-assigned identity is On; identifiers are
+redacted.
+
+![Layer 3 — Foundry project identity](workloads/foundry/images/l3-06a-project-managed-identity.png)
+
+**Project BYO connections** — each connection uses Entra ID (`AAD`) and points
+to the customer-owned service endpoint.
+
+![Layer 3 — Storage project connection](workloads/foundry/images/l3-06b1-storage-connection.png)
+
+![Layer 3 — Cosmos DB project connection](workloads/foundry/images/l3-06b2-cosmos-connection.png)
+
+![Layer 3 — Search project connection](workloads/foundry/images/l3-06b3-search-connection.png)
+
+**Capability hosts** — the account Agents host is bound to the delegated subnet;
+the project host is Succeeded and references Storage, Cosmos DB, and Search.
+
+![Layer 3 — account capability host](workloads/foundry/images/l3-06c-account-capability-host.png)
+
+![Layer 3 — project capability-host connections](workloads/foundry/images/l3-06d-project-capability-host.png)
+
+![Layer 3 — project capability-host status](workloads/foundry/images/l3-06d2-project-capability-status.png)
+
+> **Screenshot placeholder — `l3-06e-project-resource-roles.png`**: capture the
+> complete project identity role set on Storage, Cosmos DB, Search, ACR, App
+> Insights, and Log Analytics.
+
+**Private monitoring** — Application Insights public ingestion/query are
+restricted and the component is associated with the central AMPLS.
+
+![Layer 3 — Application Insights public access restricted](workloads/foundry/images/l3-07a-foundry-appinsights-public-restricted.png)
+
+![Layer 3 — Application Insights central AMPLS association](workloads/foundry/images/l3-07b-foundry-appinsights-ampls.png)
+
+**STOP:** both capability hosts and all private endpoints must be Succeeded,
+private DNS/TCP tests must pass, and Terraform must return `0` before Step 18.
+
+### 18. Deploy private APIM AI Gateway
+
+> **Mode: 🟦 TERRAFORM (RUNNER)** — isolated state key
+> `35-ai-gateway.tfstate`.
+
+```bash
+cd /home/azureuser/lz/platform/35-ai-gateway
+terraform init -reconfigure -backend-config="$FOUNDRY_BACKEND_FILE"
+terraform validate
+export AI_GATEWAY_TFVARS_FILE=../../_private/ai-gateway.private.tfvars
+terraform plan -var-file="$AI_GATEWAY_TFVARS_FILE" \
+  -var=apim_public_network_access_enabled=true \
+  -out=ai-gateway-bootstrap.tfplan
+terraform show -no-color ai-gateway-bootstrap.tfplan
+terraform apply ai-gateway-bootstrap.tfplan
+
+# Mandatory convergence after the Gateway private endpoint is created.
+terraform plan -var-file="$AI_GATEWAY_TFVARS_FILE" -out=ai-gateway.tfplan
+terraform show -no-color ai-gateway.tfplan
+terraform apply ai-gateway.tfplan
+terraform plan -detailed-exitcode -var-file="$AI_GATEWAY_TFVARS_FILE"
+```
+
+Azure requires public network access during initial APIM activation. The first
+apply is therefore a bootstrap phase only. The second apply must disable public
+network access, and the final detailed-exit-code plan must return `0`.
+
+The root creates APIM Standard v2, its dedicated delegated/NSG/UDR subnet,
+inbound Private Endpoint, central DNS, managed identity, LAW diagnostics, and
+Application Insights logger. Model/agent APIs and FinOps enforcement are added
+after the Hosted Agent endpoint exists.
+
+> **Screenshot placeholder — `l3-08-apim-private-network.png`**: Standard v2,
+> public access disabled, inbound PE Approved, outbound VNet integration enabled.
+
+> **Screenshot placeholder — `l3-09-apim-ai-policies.png`**: model/agent APIs,
+> managed-identity backend, token limits/metrics, content safety, rate limits,
+> and semantic-cache policy where supported.
+
+### 19. Deploy the Foundry Hosted Agent
+
+> **Mode: 🟦 AZD (PRIVATE CLIENT)** — agent code/version lifecycle, not Terraform.
+
+The first agent is Python, Responses protocol, gpt-5-mini, and private AI Search
+grounding. Deploy from a client with private Foundry/ACR DNS and data-plane
+reachability. Authenticate interactively with `azd auth login`; never automate
+or record that browser login.
+
+> **Screenshot placeholder — `l3-10-hosted-agent-active.png`**: Hosted Agent
+> version Active with Responses protocol, image/runtime, identity, and private
+> project visible; do not expose secrets.
+
+> **Screenshot placeholder — `l3-11-hosted-agent-search-response.png`**:
+> successful grounded response through private Search and the governed APIM path.
+
+### 20. Run final Layer 3 validation
 
 | Area | Pass condition |
 |---|---|
 | Public access | Disabled on every PaaS service that supports it |
-| DNS | All service FQDNs resolve to expected private endpoint IPs from the Foundry spoke and runner |
-| Routing | Agent subnet egress reaches approved private endpoints or traverses the hub firewall; no unintended direct internet path |
-| Identity | Managed identities have only the required control/data-plane roles |
-| Monitoring | OpenTelemetry reaches private Application Insights; private Log Analytics queries succeed |
-| Agent | A representative agent run and approved private tool call succeed |
-| APIM | Private client invocation succeeds through the governed gateway path |
-| Terraform | Final detailed-exit-code plan returns `0` |
+| DNS | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor FQDNs resolve privately |
+| Routing | Agent/tools/APIM egress traverses the hub firewall; private endpoints remain direct |
+| Identity | Project, Hosted Agent, and APIM identities have least-privilege roles |
+| BYO state | Agent files, vector data, and conversation state appear in Storage/Search/Cosmos |
+| Monitoring | Managed-identity OpenTelemetry reaches private Application Insights |
+| Agent | Responses invocation and Search grounding succeed |
+| APIM | Private invocation, token metric, throttling, and content policy tests pass |
+| Terraform | Foundry, gateway, firewall, and platform roots return detailed exit code `0` |
 
-For the target design and current product constraints, see
-[docs/03-foundry-workload.md](docs/03-foundry-workload.md) and
-[workloads/foundry/README.md](workloads/foundry/README.md). Replace this planned
-sequence with exact RUNNER/PORTAL commands and captured screenshots as each
-Foundry implementation phase is committed.
+> **Screenshot placeholder — `l3-12-layer3-final-validation.png`**: final private
+> invocation plus supporting DNS/telemetry evidence, with tokens and identifiers
+> redacted as required.
+
+For implementation ownership and upstream deviations, see
+[workloads/foundry/README.md](workloads/foundry/README.md) and
+[platform/35-ai-gateway/README.md](platform/35-ai-gateway/README.md).
 
 ## Evidence acceptance criteria
 

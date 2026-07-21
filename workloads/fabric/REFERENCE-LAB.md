@@ -188,9 +188,11 @@ Finally, re-register `Microsoft.Fabric` in the subscription before the tenant's
 first workspace-level Private Link deployment:
 
 ```bash
+SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+
 az provider register \
   --namespace Microsoft.Fabric \
-  --subscription f81ed7c0-efed-4b77-b948-b85407bdb710 \
+  --subscription "$SUBSCRIPTION_ID" \
   --wait
 ```
 
@@ -722,7 +724,7 @@ this document for the final state.
 To resume Phase 5, start only the Fabric lab dependencies:
 
 ```bash
-SUBSCRIPTION_ID=f81ed7c0-efed-4b77-b948-b85407bdb710
+SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
 
 az rest --method post \
   --url "https://management.azure.com/subscriptions/$SUBSCRIPTION_ID/resourceGroups/azr-sbx-lab-0001-rg-fabric-spoke/providers/Microsoft.Fabric/capacities/azrsbxlab0001fabcap/resume?api-version=2023-11-01"

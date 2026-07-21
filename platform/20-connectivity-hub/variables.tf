@@ -80,6 +80,24 @@ variable "fabric_pe_subnet_cidr" {
   default     = "10.2.0.0/27"
 }
 
+variable "foundry_agent_subnet_cidr" {
+  description = "Foundry Agent Service delegated subnet routed through the hub firewall."
+  type        = string
+  default     = "10.3.0.0/24"
+}
+
+variable "foundry_tools_subnet_cidr" {
+  description = "Foundry private tools subnet routed through the hub firewall."
+  type        = string
+  default     = "10.3.2.0/24"
+}
+
+variable "apim_integration_subnet_cidr" {
+  description = "APIM Standard v2 outbound integration subnet routed through the hub firewall."
+  type        = string
+  default     = "10.3.3.0/27"
+}
+
 variable "enable_fw_dns_proxy" {
   description = "Enable DNS proxy on the firewall policy (required for FQDN-based network rules and FQDN flow-log visibility)."
   type        = bool

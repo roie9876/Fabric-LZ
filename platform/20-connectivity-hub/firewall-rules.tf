@@ -272,3 +272,137 @@ resource "azurerm_firewall_policy_rule_collection_group" "opdg_fabric" {
     }
   }
 }
+
+resource "azurerm_firewall_policy_rule_collection_group" "foundry_ai_gateway" {
+  # Tested deny-all baseline adapted from:
+  # https://github.com/roie9876/Azure-AI-Foundry-Networking#firewall-rules-reference
+  # Includes Agent Service image/identity endpoints, Sweden Central evaluation
+  # registry/data-proxy endpoints, private-monitoring SDK configuration, and
+  # APIM platform dependencies. SharePoint sync and fine-tuning sample FQDNs are
+  # intentionally excluded until those optional features are enabled.
+  # The reference's UDP/53 rule is not required here: the Foundry spoke uses
+  # Azure-provided DNS and central Private DNS links, so 168.63.129.16 platform
+  # DNS traffic is not sent through the UDR/firewall. Public App Insights
+  # ingestion FQDNs are also omitted because ingestion resolves through AMPLS.
+  name               = "foundry-ai-gateway"
+  firewall_policy_id = azurerm_firewall_policy.hub.id
+  priority           = 510
+
+  application_rule_collection {
+    name     = "foundry-runtime-allow"
+    priority = 100
+    action   = "Allow"
+
+    rule {
+      name = "agent-runtime-and-identity"
+      source_addresses = [
+        var.foundry_agent_subnet_cidr,
+        var.foundry_tools_subnet_cidr,
+      ]
+      destination_fqdns = [
+        "*.identity.azure.net",
+        "*.data.mcr.microsoft.com",
+        "*.login.microsoft.com",
+        "*.login.microsoftonline.com",
+        "login.microsoftonline.com",
+        "mcr.microsoft.com",
+      ]
+      protocols {
+        type = "Https"
+        port = 443
+      }
+    }
+  }
+
+  application_rule_collection {
+    name     = "foundry-evaluation-allow"
+    priority = 110
+    action   = "Allow"
+
+    rule {
+      name = "evaluation-registry-and-data-proxy"
+      source_addresses = [
+        var.foundry_agent_subnet_cidr,
+        var.foundry_tools_subnet_cidr,
+      ]
+      destination_fqdns = [
+        "*.api.azureml.ms",
+        "*.azureml.ms",
+        "*.blob.core.windows.net",
+        "*.dataproxy.swedencentral.api.azureml.ms",
+        "*.experiments.azureml.net",
+        "raw.githubusercontent.com",
+      ]
+      protocols {
+        type = "Https"
+        port = 443
+      }
+    }
+  }
+
+  application_rule_collection {
+    name     = "foundry-monitoring-allow"
+    priority = 120
+    action   = "Allow"
+
+    rule {
+      name = "application-insights-sdk"
+      source_addresses = [
+        var.foundry_agent_subnet_cidr,
+        var.foundry_tools_subnet_cidr,
+      ]
+      destination_fqdns = [
+        "settings.sdk.monitor.azure.com",
+      ]
+      protocols {
+        type = "Https"
+        port = 443
+      }
+    }
+  }
+
+  application_rule_collection {
+    name     = "apim-platform-allow"
+    priority = 130
+    action   = "Allow"
+
+    rule {
+      name             = "apim-dependencies"
+      source_addresses = [var.apim_integration_subnet_cidr]
+      destination_fqdns = [
+        "*.blob.core.windows.net",
+        "*.login.microsoftonline.com",
+        "*.vault.azure.net",
+        "login.microsoftonline.com",
+      ]
+      protocols {
+        type = "Https"
+        port = 443
+      }
+    }
+  }
+
+  application_rule_collection {
+    name     = "foundry-deny-log"
+    priority = 300
+    action   = "Deny"
+
+    rule {
+      name = "deny-all-web-log"
+      source_addresses = [
+        var.foundry_agent_subnet_cidr,
+        var.foundry_tools_subnet_cidr,
+        var.apim_integration_subnet_cidr,
+      ]
+      destination_fqdns = ["*"]
+      protocols {
+        type = "Http"
+        port = 80
+      }
+      protocols {
+        type = "Https"
+        port = 443
+      }
+    }
+  }
+}
