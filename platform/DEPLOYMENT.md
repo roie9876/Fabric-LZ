@@ -30,7 +30,7 @@ Layer 1 is organized into purpose-scoped resource groups, all tagged
 | `azr-sbx-lab-0001-rg-tfstate` | Remote Terraform state backend (storage account) |
 | `azr-sbx-lab-0001-rg-net-hub` | Connectivity hub: VNet, Firewall, DNS resolver |
 | `azr-sbx-lab-0001-rg-fw-hub` | Azure Firewall public IP + Firewall Policy |
-| `azr-sbx-lab-0001-rg-monitor-network` | Central Log Analytics workspace |
+| `azr-sbx-lab-0001-rg-monitor-network` | Central Log Analytics workspace and Azure Monitor Private Link Scope |
 | `azr-sbx-lab-0001-rg-onprem-sim` | On-prem simulation, peered to the hub (connectivity validation — see below) |
 
 ---
@@ -48,6 +48,7 @@ The connectivity hub VNet `azr-sbx-lab-0001-vnet-hub-core` uses address space
 | `DNSInboundResolverSubnet` | `10.0.0.96/28` | Private DNS Resolver inbound (delegated) |
 | `DNSOutboundResolverSubnet` | `10.0.0.112/28` | Private DNS Resolver outbound (delegated) |
 | `EgressSwgSubnet` | `10.0.0.128/27` | Secure Web Gateway NVA (forced egress) |
+| `AzureMonitorPrivateEndpointSubnet` | `10.0.0.160/27` | Central AMPLS private endpoint (11 allocated IPs) |
 | `pe-subnet` | `10.0.1.0/28` | Private endpoints |
 
 ---
@@ -112,17 +113,45 @@ connectivity model.
 
 ---
 
-## 7. Central monitoring — Log Analytics
+## 7. Central monitoring — private Azure Monitor
 
 Central workspace `azr-sbx-lab-0001-law-central` in the monitoring resource
-group; platform and workload diagnostics ship here.
+group; platform and workload diagnostics ship here. Azure Monitor ingestion and
+query data planes are private through the central AMPLS endpoint.
 
 ![Log Analytics workspace](images/08-log-analytics.png)
 
 - **Workspace:** `azr-sbx-lab-0001-law-central`
 - **Pricing tier:** Pay-as-you-go
-- **Status:** Active
+- **Provisioning:** Succeeded
 - **Access control mode:** Resource- or workspace-permissions
+- **Public ingestion:** Disabled
+- **Public query:** Disabled
+- **Local authentication:** Disabled
+
+The Azure Monitor Private Link Scope
+`azr-sbx-lab-0001-ampls-central` is provisioned globally with one approved
+private endpoint and the central workspace as its scoped resource.
+
+![AMPLS overview](../docs/deployment-reference/tf-layer1-10-ampls-overview.png)
+
+![AMPLS scoped Azure Monitor resources](../docs/deployment-reference/tf-layer1-11-ampls-scoped-resources.png)
+
+![AMPLS private-only access modes](../docs/deployment-reference/tf-layer1-12-ampls-access-modes.png)
+
+- **Ingestion access mode:** Private Only
+- **Query access mode:** Private Only
+- **Private endpoint:** `azr-sbx-lab-0001-pe-ampls-central`, Approved / Succeeded
+- **Endpoint subnet:** `AzureMonitorPrivateEndpointSubnet`
+- **Private IP allocation:** `10.0.0.164` through `10.0.0.174`
+- **Private DNS:** Monitor, OMS, ODS and Agent Service zones in the hub resource
+  group; the existing hub-linked Blob zone is reused from the on-prem simulation
+  resource group so Terraform-state records remain authoritative.
+
+Private-runner validation confirmed private resolution and TCP 443 for the
+Monitor API, Application Insights ingestion, Log Analytics ingestion/query, and
+Azure Monitor solution-pack Blob endpoints. Both Stage 20 and Stage 40 returned
+Terraform detailed exit code `0` after deployment (**No changes**).
 
 ---
 
@@ -195,8 +224,8 @@ A private endpoint in the hub `pe-subnet` validates the private-link data path
 |---|---|---|
 | 00-bootstrap | `azrlab0001tfstate` (remote state) | ✅ |
 | 10-management-groups | MG hierarchy | ✅ (control plane) |
-| 20-connectivity-hub | Hub VNet, Firewall + Policy, DNS Resolver | ✅ |
-| 40-monitoring | `law-central` Log Analytics | ✅ |
+| 20-connectivity-hub | Hub VNet, Firewall + Policy, DNS Resolver, AMPLS endpoint subnet | ✅ |
+| 40-monitoring | Private `law-central`, AMPLS, private endpoint, five DNS zones | ✅ |
 | 30-egress / 50-security | Egress NVA / Defender plans | ⏳ pending |
 
 ---

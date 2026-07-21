@@ -6,7 +6,7 @@ The heart of the landing zone. Creates the central Hub & Spoke networking.
 
 | Resource | Purpose |
 |---|---|
-| Hub VNet + subnets | `AzureFirewallSubnet`, DNS Resolver in/out, SWG egress |
+| Hub VNet + subnets | `AzureFirewallSubnet`, DNS Resolver in/out, SWG egress, dedicated Azure Monitor private endpoint `/27` |
 | Azure Firewall + Policy | Single inspection point for east-west and on-prem traffic |
 | DDoS Protection plan | Protects hub public IPs (toggle with `enable_ddos`) |
 | Private DNS Resolver | Inbound + outbound endpoints for hybrid DNS |
@@ -22,15 +22,19 @@ terraform init -backend-config=../../_private/backend.hcl
 terraform apply -var-file=../../_private/enterprise.private.tfvars
 ```
 
-> **Ordering:** the firewall diagnostic setting references the `40-monitoring`
-> Log Analytics workspace. Apply `40-monitoring` **before** this stage, or set
-> `enable_fw_diagnostics = false` for the first apply and re-apply as `true` once
-> monitoring exists. Everything else in this stage is independent.
+> **Greenfield ordering:** first apply this stage with
+> `enable_fw_diagnostics = false` to create the hub and
+> `AzureMonitorPrivateEndpointSubnet`. Apply `40-monitoring` next to create the
+> workspace, AMPLS, private endpoint, and DNS. Finally, re-apply this stage with
+> `enable_fw_diagnostics = true`. Existing environments that already have the
+> workspace can add the subnet without disabling diagnostics.
 
 ## Outputs consumed by workloads
 
-- `hub_vnet_id`, `firewall_private_ip`, `dns_inbound_endpoint_ip`.
+- `hub_vnet_id`, `monitor_private_endpoint_subnet_id`,
+  `firewall_private_ip`, `dns_inbound_endpoint_ip`.
 
 ## Not yet included (extend as needed)
 
-- Private DNS zones for private endpoints (can live here or in a dedicated DNS stage).
+- Workload-specific private DNS zones. Azure Monitor zones are centrally owned
+	by `40-monitoring` and linked to this hub.

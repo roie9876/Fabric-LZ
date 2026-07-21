@@ -16,3 +16,10 @@ provider "azurerm" {
   subscription_id = var.subscription_id_monitor
   tenant_id       = var.tenant_id
 }
+
+provider "azurerm" {
+  alias = "connectivity"
+  features {}
+  subscription_id = var.subscription_id_connectivity
+  tenant_id       = var.tenant_id
+}

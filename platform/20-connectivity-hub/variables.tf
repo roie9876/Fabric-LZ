@@ -37,16 +37,18 @@ variable "hub_vnet_cidr" {
 variable "subnet_prefixes" {
   description = "Hub subnet prefixes. Real values from _private."
   type = object({
-    firewall     = string
-    dns_inbound  = string
-    dns_outbound = string
-    egress_swg   = string
+    firewall                 = string
+    dns_inbound              = string
+    dns_outbound             = string
+    egress_swg               = string
+    monitor_private_endpoint = optional(string, "10.0.0.160/27")
   })
   default = {
-    firewall     = "10.0.0.0/26"
-    dns_inbound  = "10.0.0.96/28"
-    dns_outbound = "10.0.0.112/28"
-    egress_swg   = "10.0.0.128/27"
+    firewall                 = "10.0.0.0/26"
+    dns_inbound              = "10.0.0.96/28"
+    dns_outbound             = "10.0.0.112/28"
+    egress_swg               = "10.0.0.128/27"
+    monitor_private_endpoint = "10.0.0.160/27"
   }
 }
 

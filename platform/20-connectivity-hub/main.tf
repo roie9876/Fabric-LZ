@@ -120,6 +120,14 @@ resource "azurerm_subnet" "egress_swg" {
   default_outbound_access_enabled = false
 }
 
+resource "azurerm_subnet" "monitor_private_endpoint" {
+  name                            = "AzureMonitorPrivateEndpointSubnet"
+  resource_group_name             = azurerm_resource_group.net.name
+  virtual_network_name            = azurerm_virtual_network.hub.name
+  address_prefixes                = [var.subnet_prefixes.monitor_private_endpoint]
+  default_outbound_access_enabled = false
+}
+
 # ---------- DDoS Protection ----------
 resource "azurerm_network_ddos_protection_plan" "hub" {
   count               = var.enable_ddos ? 1 : 0

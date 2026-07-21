@@ -7,6 +7,11 @@ output "hub_vnet_name" {
   value = azurerm_virtual_network.hub.name
 }
 
+output "monitor_private_endpoint_subnet_id" {
+  description = "Dedicated /27 hub subnet for the central Azure Monitor Private Link Scope endpoint."
+  value       = azurerm_subnet.monitor_private_endpoint.id
+}
+
 output "firewall_private_ip" {
   description = "Hub Azure Firewall private IP — spokes route 0.0.0.0/0 here."
   value       = azurerm_firewall.hub.ip_configuration[0].private_ip_address

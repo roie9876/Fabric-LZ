@@ -9,6 +9,11 @@ following the private-networking patterns proven in
 - Foundry spoke VNet peered to the hub.
 - BYO-VNet agent injection, private endpoints for Foundry / AI Search / Storage
   / Cosmos DB.
+- Workspace-based Application Insights through the central Azure Monitor
+  Private Link Scope; telemetry ingestion and operator queries use the hub
+  AMPLS private endpoint. The Foundry stage reuses the central Azure Monitor
+  private DNS zone IDs and links them to the Foundry spoke unless that spoke is
+  configured to resolve through the hub DNS path.
 - Publishing through the shared **APIM** platform in the connectivity layer.
 - Forced egress through the hub Azure Firewall to the SWG.
 
@@ -28,3 +33,11 @@ Skeleton only. See `workloads/foundry/` for the Terraform entry point.
 
 - `platform/20-connectivity-hub`, `platform/30-egress`, `platform/40-monitoring`,
   and the APIM platform.
+
+## Monitoring constraint
+
+Application telemetry emitted by network-injected agent application code can
+use OpenTelemetry and Application Insights through AMPLS. Microsoft currently
+documents the native Foundry **Traces** experience as unsupported with a private
+Application Insights resource, so native traces and trace-based evaluations are
+not deployment pass criteria for the private-only workload.

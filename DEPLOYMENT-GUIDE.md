@@ -573,11 +573,15 @@ as-built inventory.
 After Stage 20, the network team must establish on-prem to hub connectivity (VNet
 peering with firewall transit) and approved Firewall/SWG rules because this
 repository does not.
-After Stage 40, verify the Log Analytics workspace. AMPLS, DCRs, alerting, and
-workbooks described in the architecture are not created by the starter root.
+For a greenfield deployment, first apply Stage 20 with firewall diagnostics
+disabled, apply Stage 40, then re-apply Stage 20 with diagnostics enabled. After
+Stage 40, verify the private Log Analytics workspace, AMPLS scoped-resource
+association, approved hub private endpoint, and all five Azure Monitor private
+DNS zones. DCRs, alerting, and workbooks remain extension points.
 
 **STOP:** the hub VNet, Azure Firewall, DNS Resolver, Log Analytics workspace,
-private state path, and customer hybrid path must all be healthy before Layer 2.
+AMPLS private endpoint and DNS, private state path, and customer hybrid path
+must all be healthy before Layer 2.
 
 #### Expected Terraform result (reference screenshots)
 
@@ -599,7 +603,8 @@ key access **Disabled**, a private endpoint connection, and versioning **Enabled
 
 ![Layer 1 — tfstate storage account](docs/deployment-reference/tf-layer1-03-tfstate-storage.png)
 
-**Hub VNet subnets** — Firewall, Gateway, DNS inbound/outbound, egress, and PE subnets.
+**Hub VNet subnets** — Firewall, DNS inbound/outbound, egress, and the dedicated
+Azure Monitor private-endpoint subnet.
 
 ![Layer 1 — hub VNet subnets](docs/deployment-reference/tf-layer1-04-hub-vnet-subnets.png)
 
@@ -618,6 +623,23 @@ key access **Disabled**, a private endpoint connection, and versioning **Enabled
 **Central Log Analytics workspace** — Active, pay-as-you-go.
 
 ![Layer 1 — Log Analytics](docs/deployment-reference/tf-layer1-08-log-analytics.png)
+
+**Log Analytics network isolation** — public ingestion and query are both
+**Restricted** (public network access disabled); the workspace is reachable only
+through the Azure Monitor private endpoint.
+
+![Layer 1 — Log Analytics network isolation](docs/deployment-reference/tf-layer1-09-law-network-isolation.png)
+
+**Azure Monitor Private Link Scope** — Succeeded with one private endpoint and
+the central Log Analytics workspace as a scoped resource.
+
+![Layer 1 — AMPLS overview](docs/deployment-reference/tf-layer1-10-ampls-overview.png)
+
+![Layer 1 — AMPLS scoped resources](docs/deployment-reference/tf-layer1-11-ampls-scoped-resources.png)
+
+**Private-only access modes** — ingestion and query both set to **Private Only**.
+
+![Layer 1 — AMPLS access modes](docs/deployment-reference/tf-layer1-12-ampls-access-modes.png)
 
 ### 3. Validate the customer network handoff
 
