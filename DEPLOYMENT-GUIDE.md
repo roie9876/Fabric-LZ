@@ -17,6 +17,19 @@ Fabric reference deployment history, see
 Layer 1 as-built evidence, see
 [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md).
 
+## What this guide builds
+
+This is the end state you are working toward: a **private Workspace A** (network
+isolation via workspace-level Private Link) that ingests on-premises SQL into
+OneLake, and a **public Workspace B** (identity isolation via Entra Conditional
+Access) that serves the semantic model and report — with cross-workspace refresh
+flowing through a data gateway once Workspace A is locked down.
+
+![Target architecture — Microsoft Fabric workspace-level Private Link](docs/images/05-fabric-private-link.png)
+
+Every step below moves you toward this topology. For the full architecture
+rationale, see [workloads/fabric/README.md](workloads/fabric/README.md#topology).
+
 ## Contents
 
 - [Scope and release boundary](#scope-and-release-boundary)
