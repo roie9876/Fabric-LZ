@@ -1,6 +1,10 @@
 locals {
   prefix = "azr-${var.env}-${var.org}-${var.subcode_connectivity}"
 
+  hub_resource_group_name = "${local.prefix}-rg-net-hub"
+  hub_vnet_name           = "${local.prefix}-vnet-hub-core"
+  hub_firewall_name       = "${local.prefix}-fw-hub"
+
   tags = {
     layer   = "workload"
     stage   = "onprem-lab"
@@ -20,6 +24,76 @@ data "azurerm_subnet" "workload" {
   name                 = var.onprem_subnet_name
   resource_group_name  = data.azurerm_resource_group.onprem.name
   virtual_network_name = var.onprem_vnet_name
+}
+
+data "azurerm_virtual_network" "onprem" {
+  name                = var.onprem_vnet_name
+  resource_group_name = data.azurerm_resource_group.onprem.name
+}
+
+data "azurerm_virtual_network" "hub" {
+  name                = local.hub_vnet_name
+  resource_group_name = local.hub_resource_group_name
+}
+
+data "azurerm_firewall" "hub" {
+  name                = local.hub_firewall_name
+  resource_group_name = local.hub_resource_group_name
+}
+
+# The simulated on-prem VNet is peered directly to the hub. Forwarded traffic
+# allows the hub firewall to transit on-prem <-> workload-spoke flows.
+resource "azurerm_virtual_network_peering" "onprem_to_hub" {
+  name                         = "onprem-to-hub"
+  resource_group_name          = data.azurerm_resource_group.onprem.name
+  virtual_network_name         = data.azurerm_virtual_network.onprem.name
+  remote_virtual_network_id    = data.azurerm_virtual_network.hub.id
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+  use_remote_gateways          = false
+}
+
+resource "azurerm_virtual_network_peering" "hub_to_onprem" {
+  name                         = "hub-to-onprem"
+  resource_group_name          = local.hub_resource_group_name
+  virtual_network_name         = data.azurerm_virtual_network.hub.name
+  remote_virtual_network_id    = data.azurerm_virtual_network.onprem.id
+  allow_virtual_network_access = true
+  allow_forwarded_traffic      = true
+  allow_gateway_transit        = false
+  use_remote_gateways          = false
+}
+
+resource "azurerm_route_table" "workload" {
+  name                          = "onprem-workload-rt"
+  location                      = var.location
+  resource_group_name           = data.azurerm_resource_group.onprem.name
+  bgp_route_propagation_enabled = true
+  tags                          = local.tags
+}
+
+resource "azurerm_route" "default_to_hub_firewall" {
+  name                   = "default-to-hubfw"
+  resource_group_name    = data.azurerm_resource_group.onprem.name
+  route_table_name       = azurerm_route_table.workload.name
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = data.azurerm_firewall.hub.ip_configuration[0].private_ip_address
+}
+
+resource "azurerm_route" "fabric_spoke_via_firewall" {
+  name                   = "spoke-via-fw"
+  resource_group_name    = data.azurerm_resource_group.onprem.name
+  route_table_name       = azurerm_route_table.workload.name
+  address_prefix         = var.fabric_spoke_cidr
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = data.azurerm_firewall.hub.ip_configuration[0].private_ip_address
+}
+
+resource "azurerm_subnet_route_table_association" "workload" {
+  subnet_id      = data.azurerm_subnet.workload.id
+  route_table_id = azurerm_route_table.workload.id
 }
 
 resource "random_password" "windows_admin" {

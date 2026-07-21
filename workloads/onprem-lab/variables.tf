@@ -29,7 +29,7 @@ variable "subcode_connectivity" {
 }
 
 variable "onprem_resource_group_name" {
-  description = "Existing resource group that hosts the S2S on-prem simulation."
+  description = "Existing resource group that hosts the peered on-prem simulation."
   type        = string
   default     = "azr-sbx-lab-0001-rg-onprem-sim"
 }
@@ -41,9 +41,15 @@ variable "onprem_vnet_name" {
 }
 
 variable "onprem_subnet_name" {
-  description = "Existing subnet with NAT and S2S reachability."
+  description = "Existing workload subnet with UDR-based hub firewall transit."
   type        = string
   default     = "workload"
+}
+
+variable "fabric_spoke_cidr" {
+  description = "Fabric spoke prefix routed from the on-prem workload subnet through the hub firewall."
+  type        = string
+  default     = "10.2.0.0/24"
 }
 
 variable "sql_private_ip" {

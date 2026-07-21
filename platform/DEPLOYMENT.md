@@ -100,6 +100,12 @@ gateway and no `GatewaySubnet`.
   prefix and `0.0.0.0/0` to the Azure Firewall (`10.0.0.4`), which transits/SNATs.
 - The on-prem simulation VNet (`azr-sbx-lab-0001-rg-onprem-sim`) is peered to the
   hub in both directions with forwarded traffic allowed.
+- The optional `workloads/onprem-lab` state owns both peerings, the
+  `onprem-workload-rt` route table, its default/Fabric routes, and the workload
+  subnet association. These resources were imported after the VPN simulation
+  was retired; its final Terraform plan reports no drift.
+- The unused VPN-era `GatewaySubnet` was removed from `onprem-vnet`; only the
+  `AzureBastionSubnet` and routed `workload` subnet remain.
 
 ---
 

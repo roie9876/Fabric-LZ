@@ -14,6 +14,14 @@ output "opdg_private_ip" {
   value = azurerm_network_interface.opdg.private_ip_address
 }
 
+output "onprem_to_hub_peering_id" {
+  value = azurerm_virtual_network_peering.onprem_to_hub.id
+}
+
+output "onprem_workload_route_table_id" {
+  value = azurerm_route_table.workload.id
+}
+
 output "sql_database_name" {
   value = "FabricHybridLab"
 }

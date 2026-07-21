@@ -570,9 +570,10 @@ Expected final detailed exit code: `0` (`No changes`). Review
 [platform/DEPLOYMENT.md](platform/DEPLOYMENT.md) for Layer 1 screenshots and the
 as-built inventory.
 
-After Stage 20, the network team must establish on-prem to hub connectivity (VNet
-peering with firewall transit) and approved Firewall/SWG rules because this
-repository does not.
+After Stage 20, the production network team must establish the customer hybrid
+path and approved Firewall/SWG rules. In the optional sandbox path,
+`workloads/onprem-lab` owns the direct on-prem-to-hub peerings and the workload
+UDR that sends the Fabric prefix and default route through the hub firewall.
 For a greenfield deployment, first apply Stage 20 with firewall diagnostics
 disabled, apply Stage 40, then re-apply Stage 20 with diagnostics enabled. After
 Stage 40, verify the private Log Analytics workspace, AMPLS scoped-resource
@@ -1207,8 +1208,9 @@ worksheet.
 #### Path B: optional lab simulation only
 
 Use this path only for a sandbox. It adds one SQL Developer VM and one OPDG VM
-to an **existing** VNet/subnet named in the private variables. It does not create
-the simulated on-premises VNet, hub peering, NAT, or private runner.
+to an **existing** VNet/subnet named in the private variables. It creates both
+on-prem-to-hub peerings and the workload firewall-transit UDR, but does not
+create the simulated on-premises VNet, NAT/Bastion services, or private runner.
 Read [workloads/onprem-lab/README.md](workloads/onprem-lab/README.md) before
 planning this optional root.
 
@@ -1226,7 +1228,7 @@ terraform apply onprem-lab.tfplan
 terraform plan -detailed-exitcode -var-file="$TFVARS_FILE"
 ```
 
-Reference sandbox expectation: 14 resources on first deployment and final plan
+Reference sandbox expectation: 20 resources on first deployment and final plan
 exit code `0`.
 
 **CHECK**

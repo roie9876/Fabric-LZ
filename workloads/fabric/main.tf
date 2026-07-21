@@ -110,11 +110,10 @@ resource "azurerm_subnet_route_table_association" "pe" {
   route_table_id = azurerm_route_table.spoke.id
 }
 
-# ---------- Hub <-> spoke peering (firewall transit; VPN removed) ----------
-# On-prem was collapsed from S2S VPN to direct VNet peering with the hub, and the
-# hub firewall is the transit for on-prem <-> spoke. The spoke therefore no longer
-# needs the hub's VPN gateway (use_remote_gateways) — it reaches on-prem via the
-# firewall (pe-subnet route 172.16.0.0/16 -> firewall) and the hub via peering.
+# ---------- Hub <-> spoke peering (firewall transit) ----------
+# The simulated on-prem VNet peers directly with the hub, and the hub firewall
+# transits on-prem <-> spoke traffic. The spoke reaches on-prem through the
+# pe-subnet route 172.16.0.0/16 -> firewall and the hub through peering.
 resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   name                         = "fabric-spoke-to-hub"
   resource_group_name          = azurerm_resource_group.fabric.name

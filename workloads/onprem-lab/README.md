@@ -1,8 +1,8 @@
 # Simulated On-Premises SQL and OPDG Lab
 
 This Terraform root is an optional **sandbox-only** dependency for the Fabric
-runbook. It creates two private Windows VMs inside an existing simulated
-on-premises VNet:
+runbook. It connects an existing simulated on-premises VNet to the hub and
+creates two private Windows VMs in its workload subnet:
 
 - SQL Server 2022 Developer VM.
 - On-premises Data Gateway (OPDG) staging VM.
@@ -14,19 +14,25 @@ capacity testing.
 
 ## Prerequisites
 
-The root does not create the surrounding on-premises simulation. Before plan,
-the following must already exist:
+The root does not create the surrounding on-premises VNet, NAT/Bastion services,
+or private runner. Before plan, the following must already exist:
 
 - Resource group, VNet, and workload subnet named by the input variables.
+- Layer 1 hub VNet and Azure Firewall.
 - Non-overlapping static addresses for SQL and OPDG.
 - Outbound connectivity for Windows/PowerShell/gateway downloads and OPDG cloud
   dependencies.
-- Hybrid route and DNS path to the Fabric workspace Private Endpoint.
+- DNS forwarding to the hub Private DNS Resolver.
 - Private Terraform backend and runner with managed identity access.
 
 ## Resources
 
-A fresh reference deployment creates 14 resources:
+A fresh reference deployment creates 20 resources:
+
+- Direct `onprem-to-hub` and `hub-to-onprem` VNet peerings with forwarded
+  traffic enabled and no gateway transit.
+- Workload route table with `0.0.0.0/0` and the Fabric spoke prefix routed to
+  the hub Azure Firewall, plus the workload-subnet association.
 
 - Two NIC NSGs and two NIC-to-NSG associations.
 - Two NICs with static private IPs.
@@ -45,6 +51,17 @@ The SQL bootstrap configures TCP 1433, mixed authentication, database
 
 Terraform does not perform the organizational sign-in, recovery-key entry, or
 OPDG tenant registration.
+
+### Existing lab adoption (2026-07-21)
+
+The reference lab originally created its replacement peering and UDR manually
+after removing the unsuccessful S2S VPN simulation. The two peerings, route
+table, two routes, and subnet association were imported into this root without
+recreation. The only applied change added the standard Terraform tags to the
+route table. The empty VPN-era `GatewaySubnet` was then deleted after confirming
+that no landing-zone virtual-network gateway, local-network gateway, connection,
+or subnet IP configuration depended on it. The final detailed-exit-code plan
+returned `0` (**No changes**).
 
 ## Deploy
 
@@ -92,6 +109,10 @@ terminal recordings. Rotate the lab credential if exposure is suspected.
 - `C:\FabricGatewayInstaller.ready` and
   `C:\Installers\GatewayInstall.exe` exist.
 - OPDG reaches SQL and all five private Fabric workspace endpoints.
+- Both on-prem/hub peerings are `Connected` / `FullyInSync` with forwarded
+  traffic enabled.
+- The workload subnet routes `0.0.0.0/0` and the Fabric spoke prefix through
+  the hub firewall private IP.
 - Post-apply Terraform plan returns exit code `0`.
 
 Continue with Step 10 of [../../DEPLOYMENT-GUIDE.md](../../DEPLOYMENT-GUIDE.md)

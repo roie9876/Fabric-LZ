@@ -10,8 +10,7 @@
 # Connectivity model: CLASSIC hub-and-spoke. Each workload spoke creates its own
 # VNet peering to this hub and its own UDR (0.0.0.0/0 -> firewall). No AVNM.
 #
-# Starter skeleton — extend with ExpressRoute Gateway and firewall rule
-# collections as needed.
+# Firewall rule collections are defined separately in firewall-rules.tf.
 ##
 
 # ---------- Naming ----------
@@ -222,6 +221,7 @@ resource "azurerm_private_dns_resolver_outbound_endpoint" "hub" {
 }
 
 # ---------- Connectivity model ----------
-# This reference uses CLASSIC hub-and-spoke: each workload spoke creates its own
+# This reference uses CLASSIC hub-and-spoke: the simulated on-prem VNet and each
+# workload spoke peer directly to the hub. Each workload spoke creates its own
 # VNet peering to this hub and its own UDR (0.0.0.0/0 -> firewall). There is no
 # Azure Virtual Network Manager (AVNM) — see platform/README.md for the rationale.
