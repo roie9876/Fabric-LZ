@@ -13,6 +13,8 @@
     <linearGradient id="fabMid" x1="0.15" y1="1" x2="0.85" y2="0"><stop offset="0" stop-color="#0f7d76"/><stop offset="1" stop-color="#2fbf9c"/></linearGradient>
     <linearGradient id="fabStem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#13716b"/><stop offset="1" stop-color="#0a494d"/></linearGradient>
     <linearGradient id="stream" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5cff"/><stop offset="0.5" stop-color="#1b9cff"/><stop offset="1" stop-color="#24d3b2"/></linearGradient>
+    <radialGradient id="brainGlow" cx="0.5" cy="0.45"><stop offset="0" stop-color="#c6f5ff" stop-opacity="0.9"/><stop offset="0.4" stop-color="#31b7ff" stop-opacity="0.45"/><stop offset="1" stop-color="#1b5fd0" stop-opacity="0"/></radialGradient>
+    <linearGradient id="brainLine" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8becff"/><stop offset="0.5" stop-color="#37a8ff"/><stop offset="1" stop-color="#39e6c2"/></linearGradient>
     <filter id="glowBlue" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <filter id="glowSoft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="26" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#000716" flood-opacity="0.75"/></filter>
@@ -50,6 +52,36 @@
       <path d="M490 455C620 370 690 390 800 455C920 385 1010 365 1112 455" stroke="url(#stream)" stroke-width="3" opacity="0.7"/>
       <path d="M492 494C610 552 698 520 800 474C910 526 1010 550 1110 494" stroke="url(#stream)" stroke-width="4" opacity="0.65" filter="url(#glowBlue)"/>
       <path d="M500 530C635 610 706 558 800 492C910 570 1008 606 1104 530" stroke="url(#stream)" stroke-width="2.5" opacity="0.55"/>
+    </g>
+
+    <!-- neural brain: shared intelligence between Foundry IQ and Fabric IQ -->
+    <g transform="translate(800 430)">
+      <ellipse cx="0" cy="4" rx="140" ry="110" fill="url(#brainGlow)" filter="url(#glowSoft)"/>
+      <path d="M-92 6C-96 -28 -74 -52 -50 -52C-46 -74 -14 -80 -2 -60C6 -82 40 -78 48 -56C74 -60 98 -34 90 -6C104 6 100 34 78 40C74 60 44 66 30 54C18 70 -14 70 -26 54C-44 66 -74 58 -78 38C-98 32 -102 10 -92 6Z" fill="#0a1c47" fill-opacity="0.32" stroke="url(#brainLine)" stroke-width="2.4" filter="url(#glowBlue)"/>
+      <path d="M2 -58C-6 -34 10 -14 2 6C-6 26 10 40 6 54" fill="none" stroke="url(#brainLine)" stroke-width="2" stroke-opacity="0.85"/>
+      <g fill="none" stroke="url(#brainLine)" stroke-width="1.6" stroke-opacity="0.55" stroke-linecap="round">
+        <path d="M-78 -6C-64 -16 -60 2 -44 -6"/>
+        <path d="M-70 20C-56 12 -50 28 -34 22"/>
+        <path d="M-52 -34C-40 -42 -30 -28 -18 -36"/>
+        <path d="M-40 44C-28 36 -18 50 -6 44"/>
+        <path d="M26 -40C40 -48 50 -32 64 -40"/>
+        <path d="M34 -8C48 -16 58 2 72 -8"/>
+        <path d="M30 24C44 16 54 32 68 24"/>
+        <path d="M18 48C30 40 42 52 52 46"/>
+      </g>
+      <g stroke="url(#brainLine)" stroke-width="1" stroke-opacity="0.5" fill="none">
+        <path d="M-60 -20L-38 -40M-38 -40L-16 -16M-16 -16L-40 6M-40 6L-64 20M-16 -16L-24 30M-24 30L2 34"/>
+        <path d="M2 -40L2 0M2 0L2 34M2 -40L28 -28M2 0L34 14M28 -28L52 -10M52 -10L60 24M34 14L60 24M2 34L24 44"/>
+        <path d="M-16 -16L2 0M-40 6L-24 30"/>
+      </g>
+      <g fill="#e2f7ff">
+        <circle cx="-60" cy="-20" r="2.6"/><circle cx="-38" cy="-40" r="2.6"/><circle cx="-16" cy="-16" r="3"/>
+        <circle cx="-40" cy="6" r="2.6"/><circle cx="-64" cy="20" r="2.4"/><circle cx="-24" cy="30" r="2.6"/>
+        <circle cx="2" cy="-40" r="2.6"/><circle cx="2" cy="0" r="3.2"/><circle cx="2" cy="34" r="2.6"/>
+        <circle cx="28" cy="-28" r="2.6"/><circle cx="52" cy="-10" r="2.6"/><circle cx="34" cy="14" r="2.6"/>
+        <circle cx="60" cy="24" r="2.4"/><circle cx="24" cy="44" r="2.4"/>
+      </g>
+      <circle cx="2" cy="0" r="7" fill="#c6f5ff" opacity="0.9" filter="url(#glowBlue)"/>
     </g>
 
     <!-- Foundry IQ sphere -->
