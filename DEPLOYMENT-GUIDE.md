@@ -28,7 +28,7 @@ The repository targets three cumulative layers:
 |---|---|---|
 | **1 — Platform** | Governance, private state, hub/firewall, DNS Resolver, private Azure Monitor/AMPLS | **Core implemented and reference-deployed; Stages 30/50 remain stubs** |
 | **2 — Fabric** | Private Workspace A, public Workspace B, OPDG ingestion, semantic model/report | **Implemented and reference-deployed** |
-| **3 — Foundry** | Private Foundry/Agent Service, AI Search, Storage, Cosmos DB, Application Insights through AMPLS, APIM publication | **Architecture only; Terraform release gate is closed** |
+| **3 — Foundry** | Private Foundry/Agent Service, AI Search, Storage, Cosmos DB, Application Insights through AMPLS, APIM publication | **Foundry foundation and private APIM implemented and reference-deployed; Hosted Agent/API publication pending** |
 
 The shared network target is shown below. Layer 2 then adds a private Workspace
 A that ingests on-premises SQL into OneLake and a public Workspace B that serves
@@ -39,8 +39,8 @@ the semantic model/report through an approved data gateway path.
 ![Target architecture — Microsoft Fabric workspace-level Private Link](docs/images/05-fabric-private-link.png)
 
 Layer 3 extends the Foundry spoke shown in the landing-zone diagram. Its section
-defines the implementation contract and STOP gate until deployable Terraform is
-added to `workloads/foundry`.
+provides executable Terraform for the private Foundry foundation and APIM. The
+remaining release boundary is the Hosted Agent and its APIM APIs/policies.
 
 ## Contents
 
@@ -91,8 +91,8 @@ This repository currently provides:
   and DNS zone group.
 - Optional **lab-only** SQL Server and OPDG Windows VMs in an existing simulated
   on-premises VNet.
-- Layer 3 Foundry architecture and deployment acceptance contract. The current
-  `workloads/foundry` root is a skeleton and must not be applied as a workload.
+- Layer 3 private Foundry foundation and APIM infrastructure. The Hosted Agent
+  and its APIM APIs/policies remain behind their deployment acceptance gate.
 
 This repository does **not** deploy the following customer production
 dependencies. Their owners must complete and sign them off before the matching
@@ -2198,20 +2198,21 @@ The embedded screenshots are reference examples from the reference lab. Customer
 evidence must be captured in the customer environment. In the reference lab,
 Layers 1–2 have been executed and their screenshots captured (Layer 1 01-14,
 OPDG opdg-01..11, Phase 6 12-15 + walkthrough, Phase 7 16-18 + walkthrough,
-Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 has no deployment
-evidence because its release gate is closed. A customer run must re-capture all
-released-layer evidence in the customer tenant.
+Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 Foundry foundation
+evidence is captured in the screenshot matrix above; APIM and Hosted Agent
+evidence remains incomplete. A customer run must re-capture all released-layer
+evidence in the customer tenant.
 
 ## Rollback order
 
 Rollback in reverse dependency order. Never destroy a shared hub, backend,
 capacity, connection, or gateway because one workload test failed.
 
-After Layer 3 is released, its implementation must add an approved rollback
-sequence before this Layer 2 order: disable APIM publication, stop/remove only
-new agents, disconnect Application Insights from the project/AMPLS as permitted,
-remove Foundry private endpoints and BYO dependencies in reverse order, then
-remove the Foundry spoke. No Layer 3 rollback is executable in this release.
+For Layer 3, first disable APIM publication, then stop/remove only new agents.
+Destroy the isolated `platform/35-ai-gateway` state before the
+`workloads/foundry` state; the latter removes Application Insights integration,
+private endpoints, BYO dependencies, and the Foundry spoke in reverse dependency
+order. Do not remove shared hub firewall, DNS, Log Analytics, or AMPLS resources.
 
 1. **Workspace lockdown:** restore Workspace A public access to `Allow` from a
   private/allowed client; verify recovery.
