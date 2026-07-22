@@ -8,6 +8,10 @@
     <radialGradient id="core" cx="0.38" cy="0.3"><stop offset="0" stop-color="#ffffff"/><stop offset="0.28" stop-color="#93e8ff"/><stop offset="0.62" stop-color="#3876ff"/><stop offset="1" stop-color="#7456e8"/></radialGradient>
     <linearGradient id="foundryGlass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a2cbf"/><stop offset="0.5" stop-color="#6f4fe4"/><stop offset="1" stop-color="#1c75dd"/></linearGradient>
     <linearGradient id="fabricGlass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f6cbd"/><stop offset="0.48" stop-color="#15977f"/><stop offset="1" stop-color="#26d1ad"/></linearGradient>
+    <linearGradient id="foundryRibbon" x1="0.15" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#6a5cf0"/><stop offset="0.5" stop-color="#4b3fd6"/><stop offset="1" stop-color="#3020b4"/></linearGradient>
+    <linearGradient id="fabTop" x1="0.1" y1="1" x2="0.9" y2="0"><stop offset="0" stop-color="#1a9b8e"/><stop offset="1" stop-color="#6ff0b4"/></linearGradient>
+    <linearGradient id="fabMid" x1="0.15" y1="1" x2="0.85" y2="0"><stop offset="0" stop-color="#0f7d76"/><stop offset="1" stop-color="#2fbf9c"/></linearGradient>
+    <linearGradient id="fabStem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#13716b"/><stop offset="1" stop-color="#0a494d"/></linearGradient>
     <linearGradient id="stream" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5cff"/><stop offset="0.5" stop-color="#1b9cff"/><stop offset="1" stop-color="#24d3b2"/></linearGradient>
     <filter id="glowBlue" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
     <filter id="glowSoft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="26" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
@@ -54,18 +58,11 @@
       <circle r="137" fill="url(#foundryGlass)" opacity="0.3"/>
       <circle cx="-34" cy="-42" r="86" fill="#bbaaff" opacity="0.12"/>
       <circle r="103" fill="#0b1239" fill-opacity="0.52" stroke="#b3a7ff" stroke-opacity="0.34"/>
-      <g fill="#9578ff" filter="url(#glowBlue)">
-        <rect x="-11" y="-74" width="22" height="61" rx="11"/>
-        <rect x="-11" y="13" width="22" height="61" rx="11"/>
-        <rect x="-74" y="-11" width="61" height="22" rx="11"/>
-        <rect x="13" y="-11" width="61" height="22" rx="11"/>
-        <rect x="-11" y="-74" width="22" height="61" rx="11" transform="rotate(45)"/>
-        <rect x="-11" y="13" width="22" height="61" rx="11" transform="rotate(45)"/>
-        <rect x="-11" y="-74" width="22" height="61" rx="11" transform="rotate(-45)"/>
-        <rect x="-11" y="13" width="22" height="61" rx="11" transform="rotate(-45)"/>
+      <g filter="url(#glowBlue)">
+        <path d="M-80 80C-52 26 -4 -42 28 -74L50 -56C22 -14 -24 46 -46 80Z" fill="url(#foundryRibbon)"/>
+        <path d="M30 -66C48 -88 82 -82 82 -52C82 -28 56 -18 44 -38" fill="none" stroke="url(#foundryRibbon)" stroke-width="26" stroke-linecap="round"/>
+        <path d="M-64 74C-40 26 0 -34 26 -66" fill="none" stroke="#c3b8ff" stroke-opacity="0.42" stroke-width="8" stroke-linecap="round"/>
       </g>
-      <circle r="20" fill="#ffffff" filter="url(#glowBlue)"/>
-      <circle cx="58" cy="58" r="18" fill="#22d4dd" stroke="#ffffff" stroke-width="4" filter="url(#glowBlue)"/>
     </g>
     <text x="410" y="650" text-anchor="middle" fill="#ffffff" font-size="28" font-weight="750">Foundry IQ</text>
     <text x="410" y="681" text-anchor="middle" fill="#b6b9e8" font-size="14" font-weight="550" letter-spacing="0.5">REASON · ORCHESTRATE · ANSWER</text>
@@ -76,30 +73,14 @@
       <circle r="137" fill="url(#fabricGlass)" opacity="0.35"/>
       <circle cx="-38" cy="-44" r="84" fill="#a5fff0" opacity="0.1"/>
       <circle r="103" fill="#071d35" fill-opacity="0.5" stroke="#8ff5df" stroke-opacity="0.32"/>
-      <g filter="url(#glowBlue)">
-        <rect x="-62" y="25" width="27" height="48" rx="8" fill="#0f87e8"/>
-        <rect x="-22" y="-7" width="27" height="80" rx="8" fill="#16b99a"/>
-        <rect x="18" y="-43" width="27" height="116" rx="8" fill="#31e0b9"/>
-        <path d="M-67-34C-31-69 12-72 66-38" fill="none" stroke="#64e7ff" stroke-width="10" stroke-linecap="round"/>
-        <circle cx="-67" cy="-34" r="10" fill="#1688ff"/><circle cx="66" cy="-38" r="10" fill="#31e0b9"/>
+      <g filter="url(#glowBlue)" transform="skewX(-10)">
+        <rect x="-44" y="-72" width="32" height="150" rx="11" fill="url(#fabStem)"/>
+        <rect x="-44" y="-72" width="100" height="33" rx="11" fill="url(#fabTop)"/>
+        <rect x="-44" y="-25" width="76" height="31" rx="11" fill="url(#fabMid)"/>
       </g>
     </g>
     <text x="1190" y="650" text-anchor="middle" fill="#ffffff" font-size="28" font-weight="750">Fabric IQ</text>
     <text x="1190" y="681" text-anchor="middle" fill="#a6ddd4" font-size="14" font-weight="550" letter-spacing="0.5">UNDERSTAND · GOVERN · GROUND</text>
-
-    <!-- protected intelligence core -->
-    <g transform="translate(800 466)" filter="url(#glowSoft)">
-      <circle r="113" fill="#112252" stroke="#6bdfff" stroke-width="3" stroke-opacity="0.8"/>
-      <circle r="95" fill="url(#core)" opacity="0.92"/>
-      <circle r="76" fill="#061633" opacity="0.88"/>
-      <path d="M-38-4h76v62h-76z" fill="#ffffff" rx="14"/>
-      <path d="M-25-4v-20c0-25 13-40 25-40s25 15 25 40v20" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round"/>
-      <circle cx="0" cy="23" r="9" fill="#0f6cbd"/>
-      <path d="M0 31v12" stroke="#0f6cbd" stroke-width="7" stroke-linecap="round"/>
-      <circle r="123" fill="none" stroke="#8aeaff" stroke-width="2" stroke-dasharray="5 12" opacity="0.75"/>
-    </g>
-    <text x="800" y="625" text-anchor="middle" fill="#ffffff" font-size="19" font-weight="750">MICROSOFT IQ</text>
-    <text x="800" y="650" text-anchor="middle" fill="#a9dfff" font-size="12" font-weight="650" letter-spacing="1.2">IDENTITY-PRESERVING BRIDGE</text>
 
     <!-- foreground platform rings -->
     <ellipse cx="800" cy="720" rx="225" ry="38" fill="none" stroke="#1f82ff" stroke-opacity="0.42" stroke-width="3"/>
