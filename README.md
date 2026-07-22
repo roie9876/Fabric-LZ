@@ -35,6 +35,7 @@ implementation boundaries and do not maintain competing procedures.
   - [Layer 1: Platform (Landing Zone foundation)](#layer-1-platform-landing-zone-foundation)
   - [Layer 2: Fabric workload](#layer-2-fabric-workload)
   - [Layer 3: Foundry workload](#layer-3-foundry-workload)
+- [Foundry IQ + Fabric IQ integration vision](#foundry-iq--fabric-iq-integration-vision)
 - [Repository layout](#repository-layout)
 - [Naming convention](#naming-convention)
 - [Getting started (lab)](#getting-started-lab)
@@ -58,8 +59,8 @@ implementation boundaries and do not maintain competing procedures.
 
 ## Architecture diagrams
 
-Diagram sources live in [docs/diagrams/](docs/diagrams) (`.drawio`, Azure icons)
-and render to [docs/images/](docs/images) via `./scripts/render-diagrams.sh`.
+Diagram sources live in [docs/diagrams/](docs/diagrams) (`.drawio` and `.svg`,
+using Azure icons) and render to [docs/images/](docs/images).
 
 ### 1. Management group governance
 
@@ -98,12 +99,16 @@ Private DNS Resolver), secure egress, central monitoring, and security tooling.
 Deployed once, in stage order. **Full detail + diagrams:**
 [platform/README.md](platform/README.md).
 
+![Layer 1 topology — private hub-and-spoke foundation](docs/images/02-hub-spoke.png)
+
 ### Layer 2: Fabric workload
 
 A spoke for **Microsoft Fabric** with workspace-level Private Link (inbound) and
 on-prem SQL → OneLake ingestion via an On-premises Data Gateway. See
 [workloads/fabric/README.md](workloads/fabric/README.md) and
 [docs/02-fabric-workload.md](docs/02-fabric-workload.md).
+
+![Layer 2 topology — Workspace Private Link for Fabric](docs/images/05-fabric-private-link.png)
 
 ### Layer 3: Foundry workload
 
@@ -112,6 +117,35 @@ private-networking patterns from
 [Azure-AI-Foundry-Networking](https://github.com/roie9876/Azure-AI-Foundry-Networking).
 See [workloads/foundry/README.md](workloads/foundry/README.md) and
 [docs/03-foundry-workload.md](docs/03-foundry-workload.md).
+
+![Layer 3 topology — private Foundry with governed AI gateway](docs/images/06-foundry-private-agent.png)
+
+## Foundry IQ + Fabric IQ integration vision
+
+The target integration connects a Foundry agent to a **published Fabric data
+agent** by using the Microsoft Fabric tool and a Foundry project connection.
+The signed-in user's identity is passed to Fabric On-Behalf-Of, so Fabric item
+permissions, RLS/CLS, and Purview policy continue to govern every read-only
+query. The agent configuration contains no embedded user credential. The
+Foundry project and Fabric data agent must be in the **same Microsoft Entra
+tenant**; cross-tenant OBO isn't supported.
+
+The two identity contexts remain separate: the Foundry runtime managed identity
+accesses its Azure dependencies, while the user's OBO identity authorizes every
+Fabric query. Neither identity substitutes for the other.
+
+For the first private-link implementation, scope Fabric IQ to lakehouse,
+warehouse, or SQL sources in private Workspace A. Semantic models, KQL, mirrored
+sources, and Fabric IQ Plan items are excluded until Microsoft documents support
+for those items in the required Private Link configuration. The tool integration
+is preview and must be validated in the target tenant and region before release.
+
+![Foundry IQ and Fabric IQ — secure enterprise intelligence](docs/images/08-foundry-fabric-iq-marketing.png)
+
+Current state: this is the approved logical target only. The published Fabric
+data agent, Foundry project connection, Fabric tool configuration, OBO permission
+model, APIM API, and end-to-end private evidence are the next implementation
+workstream.
 
 ## Repository layout
 

@@ -2486,6 +2486,22 @@ showing model readiness, Storage/Cosmos/ACR public-access controls, private DNS
 links, and firewall diagnostics. Configuration screenshots must be paired with
 the runtime tests above before Layer 3 is declared complete.
 
+### 21. Target Foundry IQ + Fabric IQ integration
+
+The retained technical view below defines the next integration boundary without
+claiming it is deployed. A Foundry agent invokes a published Fabric data agent
+through the Microsoft Fabric tool and a Foundry project connection. Fabric uses
+the signed-in user's On-Behalf-Of identity, so source permissions, RLS/CLS, and
+Purview controls remain authoritative. The Foundry runtime managed identity and
+the Fabric user identity are separate security contexts.
+
+For the first private-link implementation, scope the Fabric data agent to
+Lakehouse, Warehouse, or SQL sources in private Workspace A. The published data
+agent, project connection, Fabric tool, APIM API, OBO permissions, and private
+runtime validation remain pending and will be specified in the agent workstream.
+
+![Foundry IQ + Fabric IQ — secure target architecture](docs/images/07-foundry-iq-fabric-iq-technical.png)
+
 For implementation ownership and upstream deviations, see
 [workloads/foundry/README.md](workloads/foundry/README.md) and
 [platform/35-ai-gateway/README.md](platform/35-ai-gateway/README.md).

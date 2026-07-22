@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="system-ui,-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04091c"/><stop offset="0.48" stop-color="#071334"/><stop offset="1" stop-color="#061f2b"/>
+    </linearGradient>
+    <radialGradient id="blueAura"><stop offset="0" stop-color="#1688ff" stop-opacity="0.7"/><stop offset="0.35" stop-color="#7054d8" stop-opacity="0.28"/><stop offset="1" stop-color="#04091c" stop-opacity="0"/></radialGradient>
+    <radialGradient id="tealAura"><stop offset="0" stop-color="#23d5b5" stop-opacity="0.65"/><stop offset="0.36" stop-color="#0f6cbd" stop-opacity="0.2"/><stop offset="1" stop-color="#061f2b" stop-opacity="0"/></radialGradient>
+    <radialGradient id="core" cx="0.38" cy="0.3"><stop offset="0" stop-color="#ffffff"/><stop offset="0.28" stop-color="#93e8ff"/><stop offset="0.62" stop-color="#3876ff"/><stop offset="1" stop-color="#7456e8"/></radialGradient>
+    <linearGradient id="foundryGlass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a2cbf"/><stop offset="0.5" stop-color="#6f4fe4"/><stop offset="1" stop-color="#1c75dd"/></linearGradient>
+    <linearGradient id="fabricGlass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0f6cbd"/><stop offset="0.48" stop-color="#15977f"/><stop offset="1" stop-color="#26d1ad"/></linearGradient>
+    <linearGradient id="stream" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5cff"/><stop offset="0.5" stop-color="#1b9cff"/><stop offset="1" stop-color="#24d3b2"/></linearGradient>
+    <filter id="glowBlue" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="12" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="glowSoft" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="26" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="22" flood-color="#000716" flood-opacity="0.75"/></filter>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse"><path d="M48 0H0V48" fill="none" stroke="#6bb7ff" stroke-opacity="0.07" stroke-width="1"/></pattern>
+    <clipPath id="scene"><rect width="1600" height="900" rx="0"/></clipPath>
+  </defs>
+
+  <g clip-path="url(#scene)">
+    <rect width="1600" height="900" fill="url(#bg)"/>
+    <rect width="1600" height="900" fill="url(#grid)" opacity="0.7"/>
+    <ellipse cx="420" cy="480" rx="520" ry="470" fill="url(#blueAura)"/>
+    <ellipse cx="1190" cy="470" rx="520" ry="470" fill="url(#tealAura)"/>
+
+    <!-- atmospheric lines -->
+    <path d="M-80 740C300 570 450 790 780 625S1270 455 1680 620" fill="none" stroke="#3657d8" stroke-opacity="0.16" stroke-width="2"/>
+    <path d="M-100 780C260 600 490 830 820 660S1270 510 1680 670" fill="none" stroke="#28c9b0" stroke-opacity="0.12" stroke-width="2"/>
+    <path d="M40 190C330 80 520 170 770 105S1240 40 1580 150" fill="none" stroke="#7a5cff" stroke-opacity="0.12" stroke-width="2"/>
+
+    <!-- stars / particles -->
+    <g fill="#a9dfff">
+      <circle cx="165" cy="254" r="2" opacity="0.7"/><circle cx="246" cy="704" r="3" opacity="0.5"/><circle cx="352" cy="176" r="2" opacity="0.6"/>
+      <circle cx="635" cy="690" r="2" opacity="0.8"/><circle cx="746" cy="202" r="3" opacity="0.55"/><circle cx="905" cy="710" r="2" opacity="0.75"/>
+      <circle cx="1138" cy="178" r="2" opacity="0.65"/><circle cx="1370" cy="690" r="3" opacity="0.5"/><circle cx="1480" cy="270" r="2" opacity="0.8"/>
+    </g>
+
+    <!-- headline -->
+    <text x="94" y="76" fill="#84d9cf" font-size="13" font-weight="750" letter-spacing="2.2">SECURE ENTERPRISE INTELLIGENCE</text>
+    <text x="92" y="132" fill="#ffffff" font-size="43" font-weight="750">Your data. Your identity.</text>
+    <text x="92" y="181" fill="#ffffff" font-size="43" font-weight="750">One intelligent answer.</text>
+    <text x="96" y="220" fill="#a8b7d7" font-size="17" font-weight="500">Foundry IQ × Fabric IQ</text>
+
+    <!-- energy bridge behind orbs -->
+    <g fill="none" stroke-linecap="round">
+      <path d="M492 420C610 300 670 330 800 440C930 330 1005 305 1110 420" stroke="url(#stream)" stroke-width="5" opacity="0.8" filter="url(#glowBlue)"/>
+      <path d="M490 455C620 370 690 390 800 455C920 385 1010 365 1112 455" stroke="url(#stream)" stroke-width="3" opacity="0.7"/>
+      <path d="M492 494C610 552 698 520 800 474C910 526 1010 550 1110 494" stroke="url(#stream)" stroke-width="4" opacity="0.65" filter="url(#glowBlue)"/>
+      <path d="M500 530C635 610 706 558 800 492C910 570 1008 606 1104 530" stroke="url(#stream)" stroke-width="2.5" opacity="0.55"/>
+    </g>
+
+    <!-- Foundry IQ sphere -->
+    <g transform="translate(410 454)" filter="url(#shadow)">
+      <circle r="147" fill="#100d38" stroke="#7761f3" stroke-opacity="0.72" stroke-width="2"/>
+      <circle r="137" fill="url(#foundryGlass)" opacity="0.3"/>
+      <circle cx="-34" cy="-42" r="86" fill="#bbaaff" opacity="0.12"/>
+      <circle r="103" fill="#0b1239" fill-opacity="0.52" stroke="#b3a7ff" stroke-opacity="0.34"/>
+      <g fill="#9578ff" filter="url(#glowBlue)">
+        <rect x="-11" y="-74" width="22" height="61" rx="11"/>
+        <rect x="-11" y="13" width="22" height="61" rx="11"/>
+        <rect x="-74" y="-11" width="61" height="22" rx="11"/>
+        <rect x="13" y="-11" width="61" height="22" rx="11"/>
+        <rect x="-11" y="-74" width="22" height="61" rx="11" transform="rotate(45)"/>
+        <rect x="-11" y="13" width="22" height="61" rx="11" transform="rotate(45)"/>
+        <rect x="-11" y="-74" width="22" height="61" rx="11" transform="rotate(-45)"/>
+        <rect x="-11" y="13" width="22" height="61" rx="11" transform="rotate(-45)"/>
+      </g>
+      <circle r="20" fill="#ffffff" filter="url(#glowBlue)"/>
+      <circle cx="58" cy="58" r="18" fill="#22d4dd" stroke="#ffffff" stroke-width="4" filter="url(#glowBlue)"/>
+    </g>
+    <text x="410" y="650" text-anchor="middle" fill="#ffffff" font-size="28" font-weight="750">Foundry IQ</text>
+    <text x="410" y="681" text-anchor="middle" fill="#b6b9e8" font-size="14" font-weight="550" letter-spacing="0.5">REASON · ORCHESTRATE · ANSWER</text>
+
+    <!-- Fabric IQ sphere -->
+    <g transform="translate(1190 454)" filter="url(#shadow)">
+      <circle r="147" fill="#062d35" stroke="#43dbc1" stroke-opacity="0.72" stroke-width="2"/>
+      <circle r="137" fill="url(#fabricGlass)" opacity="0.35"/>
+      <circle cx="-38" cy="-44" r="84" fill="#a5fff0" opacity="0.1"/>
+      <circle r="103" fill="#071d35" fill-opacity="0.5" stroke="#8ff5df" stroke-opacity="0.32"/>
+      <g filter="url(#glowBlue)">
+        <rect x="-62" y="25" width="27" height="48" rx="8" fill="#0f87e8"/>
+        <rect x="-22" y="-7" width="27" height="80" rx="8" fill="#16b99a"/>
+        <rect x="18" y="-43" width="27" height="116" rx="8" fill="#31e0b9"/>
+        <path d="M-67-34C-31-69 12-72 66-38" fill="none" stroke="#64e7ff" stroke-width="10" stroke-linecap="round"/>
+        <circle cx="-67" cy="-34" r="10" fill="#1688ff"/><circle cx="66" cy="-38" r="10" fill="#31e0b9"/>
+      </g>
+    </g>
+    <text x="1190" y="650" text-anchor="middle" fill="#ffffff" font-size="28" font-weight="750">Fabric IQ</text>
+    <text x="1190" y="681" text-anchor="middle" fill="#a6ddd4" font-size="14" font-weight="550" letter-spacing="0.5">UNDERSTAND · GOVERN · GROUND</text>
+
+    <!-- protected intelligence core -->
+    <g transform="translate(800 466)" filter="url(#glowSoft)">
+      <circle r="113" fill="#112252" stroke="#6bdfff" stroke-width="3" stroke-opacity="0.8"/>
+      <circle r="95" fill="url(#core)" opacity="0.92"/>
+      <circle r="76" fill="#061633" opacity="0.88"/>
+      <path d="M-38-4h76v62h-76z" fill="#ffffff" rx="14"/>
+      <path d="M-25-4v-20c0-25 13-40 25-40s25 15 25 40v20" fill="none" stroke="#ffffff" stroke-width="13" stroke-linecap="round"/>
+      <circle cx="0" cy="23" r="9" fill="#0f6cbd"/>
+      <path d="M0 31v12" stroke="#0f6cbd" stroke-width="7" stroke-linecap="round"/>
+      <circle r="123" fill="none" stroke="#8aeaff" stroke-width="2" stroke-dasharray="5 12" opacity="0.75"/>
+    </g>
+    <text x="800" y="625" text-anchor="middle" fill="#ffffff" font-size="19" font-weight="750">MICROSOFT IQ</text>
+    <text x="800" y="650" text-anchor="middle" fill="#a9dfff" font-size="12" font-weight="650" letter-spacing="1.2">IDENTITY-PRESERVING BRIDGE</text>
+
+    <!-- foreground platform rings -->
+    <ellipse cx="800" cy="720" rx="225" ry="38" fill="none" stroke="#1f82ff" stroke-opacity="0.42" stroke-width="3"/>
+    <ellipse cx="800" cy="720" rx="160" ry="25" fill="none" stroke="#29d9bd" stroke-opacity="0.46" stroke-width="2"/>
+    <ellipse cx="800" cy="720" rx="94" ry="14" fill="#1f82ff" fill-opacity="0.12" stroke="#8aeaff" stroke-opacity="0.5"/>
+
+    <!-- promise -->
+    <rect x="425" y="784" width="750" height="58" rx="29" fill="#0b1737" fill-opacity="0.88" stroke="#72d8d0" stroke-opacity="0.35"/>
+    <text x="800" y="820" text-anchor="middle" fill="#e9fbff" font-size="16" font-weight="650" letter-spacing="0.4">Private by design  ·  User-governed  ·  Grounded in enterprise data</text>
+  </g>
+</svg>

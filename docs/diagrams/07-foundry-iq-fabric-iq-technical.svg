@@ -1,0 +1,161 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" width="1600" height="900" font-family="system-ui,-apple-system,'Segoe UI','Helvetica Neue',Arial,sans-serif">
+  <defs>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="3" stdDeviation="6" flood-color="#0b1a2b" flood-opacity="0.14"/>
+    </filter>
+    <linearGradient id="foundryGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0f6cbd"/><stop offset="1" stop-color="#117865"/>
+    </linearGradient>
+    <linearGradient id="fabricGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#117865"/><stop offset="1" stop-color="#35a88b"/>
+    </linearGradient>
+    <linearGradient id="answerGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#eaf5f2"/><stop offset="1" stop-color="#f4f8fc"/>
+    </linearGradient>
+    <marker id="arrowBlue" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#0f6cbd"/></marker>
+    <marker id="arrowTeal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#117865"/></marker>
+    <marker id="arrowGold" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#b77900"/></marker>
+    <g id="foundryIqMark">
+      <circle cx="0" cy="0" r="33" fill="#f4f0ff" stroke="#8b6ce7" stroke-width="2"/>
+      <g fill="#7054d8">
+        <rect x="-5" y="-25" width="10" height="22" rx="5"/>
+        <rect x="-5" y="3" width="10" height="22" rx="5"/>
+        <rect x="-25" y="-5" width="22" height="10" rx="5"/>
+        <rect x="3" y="-5" width="22" height="10" rx="5"/>
+        <rect x="-5" y="-25" width="10" height="22" rx="5" transform="rotate(45)"/>
+        <rect x="-5" y="3" width="10" height="22" rx="5" transform="rotate(45)"/>
+        <rect x="-5" y="-25" width="10" height="22" rx="5" transform="rotate(-45)"/>
+        <rect x="-5" y="3" width="10" height="22" rx="5" transform="rotate(-45)"/>
+      </g>
+      <circle cx="0" cy="0" r="7" fill="#ffffff"/>
+      <circle cx="18" cy="18" r="6" fill="#23b7d1" stroke="#ffffff" stroke-width="2"/>
+    </g>
+    <g id="fabricIqMark">
+      <circle cx="0" cy="0" r="33" fill="#e8fbf6" stroke="#35a88b" stroke-width="2"/>
+      <rect x="-20" y="7" width="9" height="15" rx="3" fill="#117865"/>
+      <rect x="-7" y="-2" width="9" height="24" rx="3" fill="#15977f"/>
+      <rect x="6" y="-12" width="9" height="34" rx="3" fill="#23b7a0"/>
+      <path d="M-21-9C-8-21 7-21 21-10" fill="none" stroke="#0f6cbd" stroke-width="4" stroke-linecap="round"/>
+      <circle cx="-21" cy="-9" r="4" fill="#0f6cbd"/><circle cx="21" cy="-10" r="4" fill="#0f6cbd"/>
+    </g>
+    <g id="dataAgentMark">
+      <circle cx="0" cy="0" r="32" fill="#117865"/>
+      <rect x="-21" y="-13" width="42" height="31" rx="13" fill="#ffffff"/>
+      <circle cx="-9" cy="2" r="4" fill="#117865"/><circle cx="9" cy="2" r="4" fill="#117865"/>
+      <path d="M-10 11c6 5 14 5 20 0" fill="none" stroke="#117865" stroke-width="3" stroke-linecap="round"/>
+      <path d="M0-13v-9" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/><circle cx="0" cy="-25" r="4" fill="#23b7d1" stroke="#ffffff" stroke-width="2"/>
+    </g>
+  </defs>
+
+  <rect width="1600" height="900" fill="#ffffff"/>
+
+  <text x="62" y="46" font-size="13" font-weight="700" letter-spacing="1.5" fill="#117865">FOUNDRY IQ + FABRIC IQ  /  SECURE TARGET ARCHITECTURE</text>
+  <text x="60" y="93" font-size="38" font-weight="750" fill="#20242b">Foundry IQ meets Fabric IQ</text>
+  <text x="62" y="128" font-size="18" font-weight="550" fill="#5b5f66">Ask enterprise questions through one governed agent — private networking, user identity passthrough, and Fabric-native semantics</text>
+  <rect x="1260" y="40" width="276" height="42" rx="10" fill="#fff4ce" stroke="#d9be69" stroke-width="1.5"/>
+  <text x="1398" y="66" text-anchor="middle" font-size="12" font-weight="750" fill="#735c20">TARGET INTEGRATION · IMPLEMENTATION PENDING</text>
+
+  <!-- Shared secure foundation -->
+  <rect x="48" y="160" width="1504" height="650" rx="26" fill="#f7f9fb" stroke="#e1e7ed" stroke-width="1.5"/>
+  <text x="76" y="193" font-size="13" font-weight="750" letter-spacing="1" fill="#5b5f66">SAME-TENANT PRIVATE INTEGRATION BOUNDARY</text>
+
+  <!-- User / channel -->
+  <rect x="78" y="242" width="260" height="430" rx="22" fill="#ffffff" stroke="#b9c0c8" stroke-width="1.5" filter="url(#soft)"/>
+  <text x="208" y="280" text-anchor="middle" font-size="14" font-weight="750" fill="#30343b">PRIVATE EXPERIENCE</text>
+  <circle cx="208" cy="361" r="43" fill="#0f6cbd"/>
+  <circle cx="208" cy="348" r="14" fill="#ffffff"/>
+  <path d="M181 386a27 24 0 0 1 54 0z" fill="#ffffff"/>
+  <circle cx="248" cy="329" r="16" fill="#ffffff" stroke="#8fb5d9" stroke-width="2"/>
+  <text x="248" y="336" text-anchor="middle" font-size="20" font-weight="800" fill="#0f6cbd">?</text>
+  <text x="208" y="426" text-anchor="middle" font-size="19" font-weight="750" fill="#20242b">User / application</text>
+  <text x="208" y="453" text-anchor="middle" font-size="13" font-weight="550" fill="#5b5f66">Private network client</text>
+  <rect x="108" y="493" width="200" height="66" rx="12" fill="#f4f8fc" stroke="#8fb5d9" stroke-width="1.3"/>
+  <text x="208" y="520" text-anchor="middle" font-size="13" font-weight="700" fill="#254a68">APIM private endpoint</text>
+  <text x="208" y="542" text-anchor="middle" font-size="12" fill="#5b5f66">Authentication · rate limits · audit</text>
+  <rect x="108" y="584" width="200" height="50" rx="10" fill="#eaf5f2" stroke="#b9ddd5" stroke-width="1.2"/>
+  <text x="208" y="606" text-anchor="middle" font-size="12" font-weight="700" fill="#117865">Signed-in Entra identity</text>
+  <text x="208" y="623" text-anchor="middle" font-size="11" fill="#5b5f66">No embedded user credential</text>
+
+  <!-- Foundry IQ -->
+  <rect x="396" y="226" width="410" height="462" rx="24" fill="#f4f8fc" stroke="#6c9dcc" stroke-width="2" filter="url(#soft)"/>
+  <rect x="396" y="226" width="410" height="72" rx="24" fill="url(#foundryGrad)"/>
+  <rect x="396" y="274" width="410" height="24" fill="url(#foundryGrad)"/>
+  <text x="426" y="258" font-size="24" font-weight="750" fill="#ffffff">Foundry IQ</text>
+  <text x="426" y="282" font-size="12.5" font-weight="600" fill="#dff4ee">Private orchestration and reasoning</text>
+  <g transform="translate(464 365)"><use href="#foundryIqMark"/></g>
+  <g transform="translate(758 260) scale(.55)"><use href="#foundryIqMark"/></g>
+  <text x="526" y="351" font-size="18" font-weight="750" fill="#20242b">Foundry agent</text>
+  <text x="526" y="376" font-size="13" fill="#5b5f66">Intent routing · response synthesis</text>
+  <text x="526" y="397" font-size="13" fill="#5b5f66">Model orchestration · citations</text>
+
+  <rect x="430" y="438" width="342" height="82" rx="14" fill="#ffffff" stroke="#8fb5d9" stroke-width="1.4"/>
+  <text x="451" y="465" font-size="14" font-weight="750" fill="#0f6cbd">Microsoft Fabric tool</text>
+  <text x="451" y="489" font-size="12.5" fill="#5b5f66">Foundry project connection → published data agent</text>
+  <text x="451" y="509" font-size="12.5" fill="#5b5f66">User identity passthrough (On-Behalf-Of)</text>
+
+  <rect x="430" y="548" width="342" height="104" rx="14" fill="#ffffff" stroke="#d9dee4" stroke-width="1.3"/>
+  <text x="451" y="576" font-size="13" font-weight="750" fill="#30343b">Private agent foundation</text>
+  <text x="451" y="599" font-size="12" fill="#5b5f66">Runtime managed identity · private DNS · private endpoints</text>
+  <text x="451" y="620" font-size="12" fill="#5b5f66">gpt-5-mini · Search · Storage · Cosmos DB · ACR</text>
+  <text x="451" y="641" font-size="12" fill="#5b5f66">OpenTelemetry → Application Insights through AMPLS</text>
+
+  <!-- Fabric IQ -->
+  <rect x="858" y="226" width="650" height="462" rx="24" fill="#f2faf7" stroke="#72ad9d" stroke-width="2" filter="url(#soft)"/>
+  <rect x="858" y="226" width="650" height="72" rx="24" fill="url(#fabricGrad)"/>
+  <rect x="858" y="274" width="650" height="24" fill="url(#fabricGrad)"/>
+  <text x="888" y="258" font-size="24" font-weight="750" fill="#ffffff">Fabric IQ</text>
+  <text x="888" y="282" font-size="12.5" font-weight="600" fill="#e8fff8">Governed conversational analytics over enterprise data</text>
+  <g transform="translate(1464 260) scale(.55)"><use href="#fabricIqMark"/></g>
+
+  <rect x="890" y="328" width="586" height="116" rx="16" fill="#ffffff" stroke="#72ad9d" stroke-width="1.4"/>
+  <g transform="translate(946 386)"><use href="#dataAgentMark"/></g>
+  <text x="1000" y="367" font-size="18" font-weight="750" fill="#20242b">Published Fabric data agent</text>
+  <text x="1000" y="391" font-size="13" fill="#5b5f66">Read-only question planning and query execution</text>
+  <text x="1000" y="413" font-size="13" fill="#5b5f66">NL2SQL · governed source selection · concise result</text>
+
+  <text x="890" y="484" font-size="13" font-weight="750" letter-spacing="0.7" fill="#117865">PRIVATE WORKSPACE A · PUBLIC ACCESS DISABLED</text>
+  <rect x="890" y="500" width="176" height="122" rx="14" fill="#ffffff" stroke="#b9ddd5" stroke-width="1.3"/>
+  <path d="M930 532c0-12 16-21 36-21s36 9 36 21v47c0 12-16 21-36 21s-36-9-36-21z" fill="#eef4fb" stroke="#0f6cbd" stroke-width="2"/>
+  <ellipse cx="966" cy="532" rx="36" ry="15" fill="#ffffff" stroke="#0f6cbd" stroke-width="2"/>
+  <text x="978" y="602" text-anchor="middle" font-size="12.5" font-weight="750" fill="#20242b">Lakehouse tables</text>
+  <text x="978" y="618" text-anchor="middle" font-size="10.5" fill="#5b5f66">OneLake · SQL endpoint</text>
+
+  <rect x="1080" y="500" width="176" height="122" rx="14" fill="#ffffff" stroke="#b9ddd5" stroke-width="1.3"/>
+  <rect x="1121" y="519" width="92" height="68" rx="10" fill="#eef4fb" stroke="#0f6cbd" stroke-width="2"/>
+  <path d="M1137 537h60M1137 553h60M1137 569h40" stroke="#0f6cbd" stroke-width="3" stroke-linecap="round"/>
+  <text x="1168" y="603" text-anchor="middle" font-size="13" font-weight="750" fill="#20242b">Warehouse / SQL</text>
+
+  <rect x="1270" y="500" width="206" height="122" rx="14" fill="#fff9e9" stroke="#d9be69" stroke-width="1.3"/>
+  <path d="M1312 529l22-12 22 12v26c0 17-10 31-22 38-12-7-22-21-22-38z" fill="#b77900" opacity="0.9"/>
+  <path d="M1324 551l8 8 15-18" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1366" y="538" font-size="11.5" font-weight="750" fill="#735c20">OBO user authorization</text>
+  <text x="1366" y="558" font-size="10.5" fill="#5b5f66">Fabric permissions · RLS / CLS</text>
+  <text x="1366" y="576" font-size="10.5" fill="#5b5f66">Purview · read-only</text>
+  <text x="1366" y="594" font-size="10.5" fill="#5b5f66">Same-tenant boundary</text>
+
+  <!-- Request / response flows -->
+  <path d="M338 430H396" fill="none" stroke="#0f6cbd" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 7" marker-end="url(#arrowBlue)"/>
+  <rect x="331" y="390" width="86" height="27" rx="7" fill="#ffffff"/>
+  <text x="374" y="408" text-anchor="middle" font-size="11.5" font-weight="750" fill="#0f6cbd">PRIVATE API</text>
+
+  <path d="M806 470H858" fill="none" stroke="#0f6cbd" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 7" marker-end="url(#arrowBlue)"/>
+  <rect x="774" y="411" width="116" height="46" rx="9" fill="#ffffff" stroke="#c7d6ea"/>
+  <text x="832" y="430" text-anchor="middle" font-size="11.5" font-weight="750" fill="#0f6cbd">FABRIC TOOL</text>
+  <text x="832" y="447" text-anchor="middle" font-size="10.5" fill="#5b5f66">OBO user identity</text>
+
+  <path d="M1150 444V500" fill="none" stroke="#117865" stroke-width="3" marker-end="url(#arrowTeal)"/>
+
+  <path d="M858 650H806" fill="none" stroke="#117865" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 7" marker-end="url(#arrowTeal)"/>
+  <rect x="775" y="614" width="115" height="27" rx="7" fill="#ffffff"/>
+  <text x="832" y="632" text-anchor="middle" font-size="11" font-weight="750" fill="#117865">GOVERNED RESULT</text>
+
+  <path d="M396 650H338" fill="none" stroke="#117865" stroke-width="4" stroke-linecap="round" stroke-dasharray="10 7" marker-end="url(#arrowTeal)"/>
+  <rect x="328" y="614" width="97" height="27" rx="7" fill="#ffffff"/>
+  <text x="377" y="632" text-anchor="middle" font-size="11" font-weight="750" fill="#117865">CITED ANSWER</text>
+
+  <!-- Security rail -->
+  <rect x="78" y="738" width="1430" height="48" rx="12" fill="url(#answerGrad)" stroke="#b9ddd5" stroke-width="1.3"/>
+  <text x="793" y="768" text-anchor="middle" font-size="13" font-weight="750" fill="#117865">PRIVATE LINK + MICROSOFT BACKBONE  ·  ENTRA OBO  ·  LEAST PRIVILEGE  ·  PURVIEW / RLS / CLS  ·  FIREWALL + PRIVATE DNS  ·  AMPLS AUDIT</text>
+
+  <text x="800" y="850" text-anchor="middle" font-size="12" fill="#7a7f85">Private-link scope for the first implementation: Fabric data agent over Lakehouse / Warehouse / SQL sources. Preview tool and network behavior must be validated in the target tenant and region.</text>
+</svg>
