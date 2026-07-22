@@ -34,10 +34,6 @@ The shared network target is shown below. Layer 2 then adds a private Workspace
 A that ingests on-premises SQL into OneLake and a public Workspace B that serves
 the semantic model/report through an approved data gateway path.
 
-![Landing-zone layers — hub, spokes, private monitoring, and forced egress](docs/images/02-hub-spoke.png)
-
-![Target architecture — Microsoft Fabric workspace-level Private Link](docs/images/05-fabric-private-link.png)
-
 Layer 3 extends the Foundry spoke shown in the landing-zone diagram. Its section
 provides executable Terraform for the private Foundry foundation and APIM. The
 remaining release boundary is the Hosted Agent and its APIM APIs/policies.
@@ -392,6 +388,13 @@ plan is saved, delete that plan and create a new one.
 
 ## Layer 1 — Platform foundation
 
+This topology shows the Layer 1 shared control plane: workload spokes use the
+hub for hybrid routing, firewall inspection, private DNS, controlled egress, and
+private Azure Monitor. Layer-specific workload services are intentionally shown
+only as spoke attachments; their detailed flows appear in Layers 2 and 3.
+
+![Layer 1 topology — private hub-and-spoke foundation](docs/images/02-hub-spoke.png)
+
 ### 1. Prepare the operator workstation
 
 > **Mode: ⬜ PREP (LAPTOP)** — one-time workstation setup; no Azure resources created.
@@ -625,61 +628,114 @@ must all be healthy before Layer 2.
 > 📸 **Reference only — do not perform manually.** These show the expected Azure
 > portal state **after** `terraform apply` succeeds for Layer 1. Use them to
 > verify your customer deployment. Names/IDs/regions will differ from the lab.
+>
+> Each block below explains both **why the control exists** and **what the image
+> proves**. A portal screenshot proves configured control-plane state; where the
+> guide also requires DNS, TCP, log, or application tests, the screenshot does
+> not replace those data-plane checks.
 
 **Management groups** — the governance hierarchy (CAF-style `mgmt / workloads /
 monitor / sandbox` in production; the reference tenant shows its own tree).
+This hierarchy provides inheritance boundaries for policy and RBAC instead of
+assigning governance separately to every subscription. The image proves the
+parent/child structure exists; policy-compliance evidence is validated
+separately.
 
 ![Layer 1 — management groups](docs/deployment-reference/tf-layer1-01-management-groups.png)
 
-**Resource groups** — the Layer 1 resource groups, all in the target region.
+**Resource groups** — separate state, hub networking, firewall, monitoring, and
+lab resources by ownership and lifecycle. This makes RBAC, cost attribution,
+locks, and rollback narrower than subscription scope. The image proves the
+expected groups were created in the reference deployment.
 
 ![Layer 1 — resource groups](docs/deployment-reference/tf-layer1-02-resource-groups.png)
 
 **Private Terraform state storage** — public network access **Disabled**, shared
-key access **Disabled**, a private endpoint connection, and versioning **Enabled**.
+key access **Disabled**, a private endpoint connection, and versioning
+**Enabled**. Remote state provides locking and a common source of truth for the
+private runner; disabling public/shared-key access prevents state contents from
+being fetched through an internet endpoint or account key. The image proves the
+storage controls are configured, while the runner DNS/TCP test proves they are
+usable.
 
 ![Layer 1 — tfstate storage account](docs/deployment-reference/tf-layer1-03-tfstate-storage.png)
 
 **Hub VNet subnets** — Firewall, DNS inbound/outbound, egress, and the dedicated
-Azure Monitor private-endpoint subnet.
+Azure Monitor private-endpoint subnet. Dedicated subnets satisfy Azure service
+delegation/size requirements and prevent private endpoint NICs from sharing a
+subnet with managed network appliances. The image proves the address plan and
+subnet separation were applied.
 
 ![Layer 1 — hub VNet subnets](docs/deployment-reference/tf-layer1-04-hub-vnet-subnets.png)
 
-**Azure Firewall** — Standard SKU, private IP, attached Firewall Policy.
+**Azure Firewall** — the hub inspection and egress point for spoke and hybrid
+traffic forced to its private IP by UDRs. Standard SKU supplies centralized
+network/application filtering and threat-intelligence alerting; this design does
+not claim Premium TLS inspection. The image proves the firewall is provisioned
+and associated with its policy; runtime logs prove rule enforcement.
 
 ![Layer 1 — Azure Firewall](docs/deployment-reference/tf-layer1-05-azure-firewall.png)
 
-**Firewall Policy** — Standard tier, attached to the hub firewall.
+**Firewall Policy** — keeps application, network, DNAT, and deny rules in a
+separate Terraform-managed object so rule changes do not replace the firewall.
+The image proves the Standard policy is attached to the hub firewall; the rule
+collection and diagnostic screenshots later in the guide prove its contents and
+runtime matches.
 
 ![Layer 1 — Firewall Policy](docs/deployment-reference/tf-layer1-06-firewall-policy.png)
 
-**Private DNS Resolver** — one inbound and one outbound endpoint, Connected.
+**Private DNS Resolver** — the inbound endpoint gives on-premises/custom DNS a
+stable hub IP to query Azure Private DNS zones, allowing private endpoint FQDNs
+to resolve to private addresses. The outbound endpoint is not internet DNS; it
+is where a DNS forwarding ruleset can be attached to send selected namespaces
+from Azure to on-premises or another custom DNS service. This release creates
+the outbound endpoint as an extension point but attaches no forwarding ruleset,
+so it performs no active forwarding. The image proves both endpoint resources
+are provisioned and Connected; query tests against the inbound IP prove name
+resolution.
 
 ![Layer 1 — Private DNS Resolver](docs/deployment-reference/tf-layer1-07-dns-resolver.png)
 
-**Central Log Analytics workspace** — Active, pay-as-you-go.
+**Central Log Analytics workspace** — the shared destination for firewall,
+network, monitoring, and workload diagnostics, avoiding isolated log stores per
+spoke. Pay-as-you-go is the reference-lab billing tier, not the security control.
+The image proves the workspace is Active; diagnostic settings and sample KQL
+results prove resources are actually sending logs.
 
 ![Layer 1 — Log Analytics](docs/deployment-reference/tf-layer1-08-log-analytics.png)
 
 **Log Analytics network isolation** — public ingestion and query are both
 **Restricted** (public network access disabled); the workspace is reachable only
-through the Azure Monitor private endpoint.
+through the Azure Monitor private endpoint. This prevents operators or agents
+from bypassing the landing-zone network path when writing or querying the shared
+audit trail; loss of private DNS/connectivity therefore fails closed and must be
+treated as an operational incident.
 
 ![Layer 1 — Log Analytics network isolation](docs/deployment-reference/tf-layer1-09-law-network-isolation.png)
 
 **Azure Monitor Private Link Scope** — Succeeded with one private endpoint and
-the central Log Analytics workspace as a scoped resource.
+the central Log Analytics workspace as a scoped resource. AMPLS binds Azure
+Monitor ingestion/query resources to one private-link boundary so workloads can
+send and operators can query telemetry without public data-plane access. The
+overview proves the scope and endpoint exist; the scoped-resource image proves
+the workspace is included in that boundary.
 
 ![Layer 1 — AMPLS overview](docs/deployment-reference/tf-layer1-10-ampls-overview.png)
 
 ![Layer 1 — AMPLS scoped resources](docs/deployment-reference/tf-layer1-11-ampls-scoped-resources.png)
 
 **Private-only access modes** — ingestion and query both set to **Private Only**.
+This blocks fallback to Azure Monitor public endpoints, so missing private DNS or
+network connectivity fails closed instead of silently using the internet. The
+image proves both AMPLS access modes are enforced.
 
 ![Layer 1 — AMPLS access modes](docs/deployment-reference/tf-layer1-12-ampls-access-modes.png)
 
 **AMPLS private endpoint** — deployed in the hub `AzureMonitorPrivateEndpointSubnet`,
-connection state **Approved**, targeting the `azuremonitor` sub-resource.
+connection state **Approved**, targeting the `azuremonitor` sub-resource. It is
+the private network entry point used by all AMPLS-scoped ingestion and query
+FQDNs. Approval proves Azure accepted the service connection; private DNS and
+TCP 443 tests prove clients can use it.
 
 ![Layer 1 — AMPLS private endpoint](docs/deployment-reference/tf-layer1-13-ampls-private-endpoint.png)
 
@@ -687,6 +743,10 @@ connection state **Approved**, targeting the `azuremonitor` sub-resource.
 FQDNs to private IPs across all five required zones (`privatelink.monitor.azure.com`,
 `privatelink.oms.opinsights.azure.com`, `privatelink.ods.opinsights.azure.com`,
 `privatelink.agentsvc.azure-automation.net`, and `privatelink.blob.core.windows.net`).
+These zones cover Monitor APIs, Log Analytics ingestion/query, agent services,
+and solution-pack storage; omitting one can produce partial monitoring failures.
+The image proves all five zones are attached to the endpoint, while name
+resolution from the private runner proves the records are effective.
 
 ![Layer 1 — AMPLS private DNS zones](docs/deployment-reference/tf-layer1-14-ampls-dns-zones.png)
 
@@ -738,6 +798,13 @@ off routing, DNS, and egress.
 
 ## Layer 2 — Fabric private workspace
 
+This topology shows why Fabric ingestion and reporting use separate workspaces.
+Workspace A receives private-link ingestion and later denies unrestricted public
+access; Workspace B remains the approved consumption boundary and refreshes
+through the gateway path under Entra Conditional Access.
+
+![Layer 2 topology — Workspace Private Link for Fabric](docs/images/05-fabric-private-link.png)
+
 ### 4. Complete Fabric tenant prerequisites
 
 > **Mode: 🟨 MANUAL (PORTAL)** — perform these steps yourself in Microsoft Entra
@@ -754,18 +821,25 @@ Skip this section when resuming the current lab; it is complete.
   of Fabric completely and sign in again in a new browser session.
 4. Verify the operator can open the Fabric **Admin portal**.
 
-Reference screenshot: Fabric Administrator role assignment.
+Fabric Administrator is required to change tenant-wide Fabric networking
+settings; Workspace Admin alone cannot enable this prerequisite. The assignment
+image proves the role was granted, and the effective-role image proves it became
+active after Entra propagation. Neither image replaces the later workspace-level
+authorization checks.
 
 ![Fabric Administrator role assignment](workloads/fabric/images/fabric%20admin%20role%20in%20entra.jpeg)
 
-Completed role evidence — the operator has a direct, active, permanent
+Completed reference evidence — the lab operator has a direct, active
 **Fabric Administrator** assignment at tenant scope:
 
 ![Fabric Administrator role effective](workloads/fabric/images/02-fabric-admin-role-effective.jpeg)
 
 **PORTAL: Microsoft Fabric**
 
-1. Open **Settings** > **Admin portal**.
+1. Open **Settings** > **Admin portal**. This is the role-propagation gate for
+  the tenant networking change that follows: the image proves the active role
+  permits entry before any setting is changed. If access is denied, sign out,
+  wait for Entra propagation, and sign in again; do not continue.
 
 ![Open the Fabric Admin portal](workloads/fabric/images/01-open-admin-portal.png.jpeg)
 
@@ -775,15 +849,19 @@ Completed role evidence — the operator has a direct, active, permanent
 4. Enable it for the customer-approved security group or the entire
   organization.
 
-Reference screenshot: enabled selection before Apply. The **Unapplied changes**
-banner means the action is not complete.
+This tenant switch enables individual workspaces to enforce inbound network
+rules later in Step 14; it does not itself restrict a workspace. The first image
+shows the intended selection but the **Unapplied changes** banner means it is not
+yet evidence of enforcement.
 
 ![Enable workspace-level inbound network rules](workloads/fabric/images/workspace%20level%20rule.jpeg)
 
 5. Select **Apply**, wait for propagation, refresh the page, and verify the
   setting persists with no unapplied changes.
 
-Reference screenshot: final applied state.
+The applied-state image proves the tenant accepted and persisted the capability
+after refresh. This is why both before/after images are retained: one documents
+the selected scope, and the other documents effective state.
 
 ![Workspace-level inbound rule applied](workloads/fabric/images/workspace-level-rule-applied.jpeg)
 
@@ -880,23 +958,42 @@ the hub; VNet peering is non-transitive). No gateway transit is used.
 > **after** Phase A `terraform apply` succeeds. Verify against your environment.
 
 **Fabric capacity** — Status **Active**, the approved SKU (lab uses F2).
+Capacity supplies the compute entitlement used by both workspaces; creating
+workspaces without binding them to the approved capacity would change licensing,
+features, and performance. The image proves the expected SKU is provisioned and
+Active, not that workload queries have succeeded.
 
 ![Phase A — Fabric capacity](docs/deployment-reference/tf-phasea-01-fabric-capacity.png)
 
 **Fabric spoke VNet** — the `pe-subnet` with an attached NSG and route table.
+The spoke isolates Fabric private endpoint NICs from the hub and gives the
+workload its own routing/security lifecycle. The image proves the subnet,
+association, and address plan exist; effective-route checks prove traffic uses
+them.
 
 ![Phase A — Fabric spoke VNet](docs/deployment-reference/tf-phasea-02-spoke-vnet-subnets.png)
 
 **Forced-tunnel route table** — a single route `0.0.0.0/0 → VirtualAppliance`
 (the hub Azure Firewall private IP).
+This prevents spoke workloads from selecting Azure's default internet path for
+non-private destinations. The image proves the UDR is configured; firewall logs
+are required to prove runtime packets actually traverse it.
 
 ![Phase A — spoke route table](docs/deployment-reference/tf-phasea-03-route-table.png)
 
-**Spoke ↔ hub peering** — Fully Synchronized / Connected.
+**Spoke ↔ hub peering** — Fully Synchronized / Connected with forwarded traffic
+allowed, giving the spoke a path to hub DNS, firewall, monitoring, and the
+separately peered on-premises network. Peering is not transitive by itself; the
+UDR and firewall provide transit. The image proves the control-plane peering
+state.
 
 ![Phase A — spoke peering](docs/deployment-reference/tf-phasea-04-spoke-peerings.png)
 
-**`privatelink.fabric.microsoft.com` DNS zone** — linked to the hub and spoke VNets.
+**`privatelink.fabric.microsoft.com` DNS zone** — linked to the hub and spoke
+VNets so the workspace private endpoint records created in Phase B are visible
+to both central/hybrid resolvers and spoke clients. The image proves zone links
+exist; Phase B record and lookup evidence proves the workspace names resolve
+privately.
 
 ![Phase A — Fabric private DNS zone](docs/deployment-reference/tf-phasea-05-fabric-dns-zone.png)
 
@@ -910,7 +1007,16 @@ Skip this section when resuming the current lab; it is complete.
 
 Create Workspace A:
 
+The reference design separates ingestion from consumption. Workspace A becomes
+private after validation and owns the lakehouse/copy path; Workspace B remains
+the reporting boundary and refreshes through the approved gateway path. The
+screenshots below prove each workspace was saved to the intended F capacity and
+region before network lockdown.
+
 1. Open **Workspaces** > **New workspace**.
+
+  This image records the correct creation entry point; it is procedural context,
+  not evidence that a workspace exists.
 
 ![Open the New workspace form](workloads/fabric/images/03-open-new-workspace.jpeg)
 
@@ -918,16 +1024,26 @@ Create Workspace A:
   customer has an approved Fabric domain design. Keep the accountable
   administrators in the contact list.
 
+  The details image proves the intended name/contact ownership was reviewed
+  before creation; the post-create settings image is the authoritative saved
+  state.
+
 ![Enter Workspace A details](workloads/fabric/images/04-private-workspace-details.jpeg)
 
 3. Under **Advanced**, select the F capacity created in Phase A. Confirm the
   capacity name and region; do not select Trial, Pro, or P SKU.
+
+  Capacity selection ensures Workspace A receives the Fabric features and
+  compute planned in Terraform rather than an operator's default license.
 
 ![Assign Workspace A to the F capacity](workloads/fabric/images/05-private-workspace-capacity-selection.jpeg)
 
 4. Select **Apply**. Reopen **Workspace settings** > **Workspace type** (or
   **License info**) and confirm the saved name, `Fabric` type, capacity, SKU,
   and region.
+
+  This refreshed settings view is the evidence that creation and capacity
+  binding persisted.
 
 ![Workspace A created and assigned](workloads/fabric/images/06-private-workspace-created-and-capacity-assigned.jpeg)
 
@@ -938,12 +1054,17 @@ Create Workspace A:
 Create Workspace B:
 
 1. Create the approved public/reporting workspace name and verify the saved
-  General settings.
+  General settings. This proves Workspace B is a separate governance and access
+  boundary rather than another item inside private Workspace A, allowing
+  approved report access to remain independent when Workspace A is restricted
+  to private ingestion in Step 14.
 
 ![Workspace B general settings](workloads/fabric/images/07-public-workspace-details.jpeg)
 
 2. Assign Workspace B to the same approved F capacity and verify the applied
-  Workspace type/License info after refresh.
+  Workspace type/License info after refresh. The image proves the shared
+  capacity binding; Conditional Access evidence, not this screen, governs its
+  public user access.
 
 ![Workspace B created and assigned](workloads/fabric/images/08-public-workspace-created-and-capacity-assigned.jpeg)
 
@@ -1204,13 +1325,18 @@ validation fails.
 > **after** Phase B `terraform apply` succeeds.
 
 **Workspace private endpoint** — target sub-resource **workspace**, connection
-status **Approved**, in the Fabric spoke `pe-subnet`.
+status **Approved**, in the Fabric spoke `pe-subnet`. This endpoint is the
+private path that keeps Workspace A reachable after Step 14 disables unrestricted
+inbound access. Approval proves Fabric accepted the service connection; it does
+not prove DNS or TCP reachability.
 
 ![Phase B — Fabric workspace private endpoint](docs/deployment-reference/tf-phaseb-01-fabric-private-endpoint.png)
 
 **Private endpoint DNS configuration** — the workspace FQDNs
 (`*.fabric.microsoft.com`) resolve to private spoke IPs via the
-`privatelink.fabric.microsoft.com` zone.
+`privatelink.fabric.microsoft.com` zone. The image proves the endpoint's DNS zone
+group created the expected record mappings; lookups from the runner and OPDG
+prove clients receive those private addresses.
 
 ![Phase B — PE DNS configuration](docs/deployment-reference/tf-phaseb-02-pe-dns-zone-group.png)
 
@@ -1290,12 +1416,16 @@ user-authenticated gateway registration.
 > screenshots then illustrate the expected shape, not a Terraform output.
 
 **On-premises simulation resource group** — the lab SQL VM, OPDG VM, runner VM,
-their NICs/NSGs/disks, VNet, and NAT.
+their NICs/NSGs/disks, VNet, and NAT. These resources exist only to reproduce a
+hybrid path in the sandbox; they are not a production topology or customer
+evidence. The image proves the reference test dependencies were present.
 
 ![On-prem lab — resource group](docs/deployment-reference/tf-onprem-01-resource-group.png)
 
 **Simulated on-prem SQL Server VM** — Windows Server, private IP on the on-prem
-VNet, tagged `purpose: fabric-hybrid-simulation`.
+VNet, tagged `purpose: fabric-hybrid-simulation`. It supplies deterministic test
+rows for OPDG ingestion and validates private SQL reachability. Production must
+replace it with customer-owned SQL controls for TLS, backup, patching, and HA.
 
 ![On-prem lab — SQL Server VM](docs/deployment-reference/tf-onprem-02-sql-vm.png)
 
@@ -1362,6 +1492,12 @@ Reference deployment screenshots — full step-by-step walkthrough (captured
 (the plain `-opdg` name was already held by an earlier registration; pick an
 unused cluster name).
 
+The installation images document three distinct gates: software installation,
+tenant registration, and operational readiness. Registration must use the
+Fabric tenant's home region, not the Azure capacity region; otherwise the
+gateway can install successfully yet remain unavailable to Fabric. Secrets and
+the recovery key must remain masked.
+
 **1. Accept the license terms**, keep the default install path, select Install.
 
 ![OPDG installer — accept terms](workloads/fabric/images/opdg-01-accept-terms.jpeg)
@@ -1389,22 +1525,31 @@ never screenshotted).
 ![OPDG config name + region](workloads/fabric/images/opdg-06-config-name-region.jpeg)
 
 **7. Gateway online and Fabric-Ready** — the status panel must show
-**Microsoft Fabric → Ready** (see the region gotcha below).
+**Microsoft Fabric → Ready** (see the region gotcha below). This proves the
+cluster registered with the correct tenant service and can be selected by
+Fabric; it does not yet prove SQL or workspace private endpoint reachability.
 
 ![OPDG online, Microsoft Fabric Ready](workloads/fabric/images/opdg-08-online-fabric-ready.jpeg)
 
 **8. Network — HTTPS mode** (recommended) routes gateway traffic via Azure
-Service Bus over HTTPS.
+Service Bus/Azure Relay over TCP 443, simplifying firewall policy while retaining
+TLS protection. The image proves the setting was selected; the network ports
+test and firewall logs prove the path works.
 
 ![OPDG network HTTPS mode](workloads/fabric/images/opdg-09-network-https-mode.jpeg)
 
 **9. Service Settings** — the gateway runs as the `PBIEgwService` Windows
-service.
+service. A Running/Automatic service is required for unattended refresh and HA
+recovery after reboot. The image proves service configuration, while the host
+command verifies current runtime state.
 
 ![OPDG service settings](workloads/fabric/images/opdg-11-service-settings.jpeg)
 
 **10. Cluster online in Fabric** — the cluster appears under Fabric **Manage
 connections and gateways → On-premises data gateways** with status **Online**.
+This is the final control-plane readiness proof that Fabric can discover the
+registered cluster and its member; the SQL connection test in Step 11 proves
+the data path.
 
 ![OPDG cluster online in Fabric](workloads/fabric/images/opdg-10-fabric-cluster-online.jpeg)
 
@@ -1478,20 +1623,39 @@ members must be healthy, and screenshots 09-11 must be approved.
 
 **Screenshots (captured, firewall-routed run 2026-07-20):**
 
-Private lakehouse created in Workspace A:
+These four images form one evidence chain: the lakehouse is the managed Delta
+destination, the OPDG connection is the hybrid source path, matching copy counts
+prove transfer integrity, and the table preview proves the written result is
+queryable. No single image proves the whole pipeline by itself.
+
+**Private lakehouse created in Workspace A** — establishes the private data
+landing zone that will remain behind Workspace A's inbound restriction. The
+OPDG copy job writes the on-premises SQL data here, and Workspace B's semantic
+model later reads it through the SQL analytics endpoint. The image proves the
+item exists in the intended workspace; it does not yet prove data was ingested.
 
 ![Private lakehouse created](workloads/fabric/images/12-private-lakehouse-created.jpeg)
 
-SQL Server connection online through the on-premises data gateway (unencrypted,
-Basic auth, `[On-premises] azlab-gateway`):
+**SQL Server connection through OPDG** — binds the approved SQL source to the
+registered gateway instead of allowing Fabric to contact the database directly.
+The reference lab uses unencrypted Basic authentication only because its sample
+SQL instance lacks a trusted TLS certificate; production requires the approved
+TLS and secret pattern. A successful test proves OPDG-to-SQL connectivity and
+credentials, not that a copy job completed.
 
 ![SQL connection through gateway](workloads/fabric/images/13-sql-connection-gateway.jpeg)
 
-Copy job succeeded — 3 rows read, 3 rows written, `dbo.SalesOrders → dbo.SalesOrders`:
+**Copy job succeeded** — matching counts (3 read and 3 written) prove the
+firewall-routed SQL → OPDG → Fabric path transferred the complete reference data
+set and that the source/destination mapping executed. Save the run ID and logs;
+the screenshot alone is not sufficient for production reconciliation.
 
 ![Copy job succeeded](workloads/fabric/images/14-copyjob-succeeded-3rows.jpeg)
 
-Clean queryable Delta table in the lakehouse (all 3 rows, 4 columns):
+**Queryable Delta table** — confirms the destination is a recognized managed
+Delta table rather than an unidentified file artifact. The preview proves the
+expected rows and schema are available to the SQL analytics endpoint used by
+Workspace B.
 
 ![Lakehouse SalesOrders Delta table](workloads/fabric/images/15-lakehouse-salesorders-delta.jpeg)
 
@@ -1514,6 +1678,12 @@ start/end time, and row counts.
 
 <details>
 <summary><b>Copy job wizard walkthrough (step-by-step screenshots)</b></summary>
+
+The walkthrough records why each selection matters: choose the registered OPDG
+before testing the connection, use **Full copy** for the deterministic baseline,
+land under **Tables** to create managed Delta, and review schema mapping before
+execution. Incremental production loads require a separately approved watermark
+and recovery design.
 
 1. In the lakehouse, start **New copy job**:
 
@@ -1610,25 +1780,36 @@ capacity does not grant Workspace B network access to Workspace A.
 
 **Screenshots (captured, 2026-07-20):**
 
-Semantic model cloud connection — the public model in Workspace B binds to
-Workspace A's SQL analytics endpoint as a cloud data source before lockdown:
+These images distinguish the temporary pre-lockdown cloud path from the required
+post-lockdown gateway path. Import mode lets Workspace B serve cached report data,
+but every refresh must still reach Workspace A through an allowed connection.
+
+**Pre-lockdown cloud connection** — the public model in Workspace B binds to
+Workspace A's SQL analytics endpoint with the signed-in organizational identity.
+The green state proves cross-workspace enumeration works while Workspace A is
+open; this is not the final connection after lockdown.
 
 ![Public semantic model cloud connection](workloads/fabric/images/16-public-semantic-model-cloud-connection.jpeg)
 
-Post-lockdown gateway binding — **Gateway connections** is On, `azlab-gateway`
-is running, and the private SQL analytics endpoint maps to
-`sql-fabric-private-za2`:
+**Post-lockdown gateway binding** — **Gateway connections** is On,
+`azlab-gateway` is running, and the workspace-private SQL analytics endpoint
+maps to `sql-fabric-private-za2`. This replaces the cloud path blocked by
+Workspace A's access protector and proves the model is configured to use OPDG;
+the completed refresh below proves that configuration works.
 
 ![Public semantic model bound to OPDG](workloads/fabric/images/16-public-semantic-model-gateway-binding.jpeg)
 
-Refresh history — Import refresh `Completed` (initial web-modeling load + a
-manual refresh):
+**Refresh history** — `Completed` proves Workspace B reached the private SQL
+analytics endpoint through the bound gateway and imported current data without
+`CrossWorkspaceRequestNotAllowed`. Record the refresh ID/time so the result can
+be correlated with gateway and firewall logs.
 
 ![Public semantic model refresh succeeded](workloads/fabric/images/17-public-semantic-model-refresh-succeeded.jpeg)
 
-Public report in Workspace B rendering the SalesOrders rows read from the
-private lakehouse (Adventure Works 2,199.99 / Contoso Retail 1,250.00 /
-Fabrikam Stores 875.50; total 4,325.49):
+**Public report result** — renders the SalesOrders rows imported from the private
+lakehouse, proving the consumption layer can serve data after the ingestion and
+refresh stages. Public reachability is intentional only under the approved Entra
+Conditional Access policy; that policy must have separate evidence.
 
 ![Public report SalesOrders](workloads/fabric/images/18-public-report-salesorders.jpeg)
 
@@ -1642,6 +1823,12 @@ Fabrikam Stores 875.50; total 4,325.49):
 
 <details>
 <summary><b>Get Data / semantic model + report walkthrough (step-by-step screenshots)</b></summary>
+
+This walkthrough documents the initial model build: Organizational account is
+used to enumerate Workspace A before lockdown, **Import** caches data in
+Workspace B, and the model/report are saved to Workspace B rather than the
+private ingestion workspace. Appendix A then replaces the temporary cloud source
+with the gateway-bound private endpoint for ongoing refresh.
 
 1. In Workspace B, **New item** > **Semantic model** (or **Report**) > **Get
    Data**:
@@ -1746,7 +1933,11 @@ change record. This is the final go/no-go review.
 
 **Screenshot (captured 2026-07-20):** Workspace A inbound networking persisted as
 *"Allow connections from selected networks and workspace level private links"*
-(public addresses Not configured = private-link only):
+(public addresses Not configured = private-link only). This restriction is
+applied last because an incorrect private path would otherwise lock operators and
+pipelines out. The refreshed image proves the policy persisted; the outside-client
+denial plus repeated private copy/refresh tests prove enforcement without loss of
+service.
 
 ![Workspace A inbound restricted](workloads/fabric/images/19-private-workspace-inbound-restricted.jpeg)
 
@@ -1792,7 +1983,9 @@ right after lockdown. Full root cause, DNS chain, and Microsoft citations are in
 **End-to-end proof — new on-prem data reaching the public report while A stays
 private (2026-07-20):** after applying the gateway fix above, a new on-prem row
 (`Northwind Traders`, 1500.00) was pushed through both hops and appeared in the
-public report:
+public report. Unlike a configuration screen, this proves the complete runtime
+chain after lockdown: SQL → OPDG → private Workspace A → gateway-bound semantic
+model → Workspace B report.
 
 ![Public report shows the new 4th row after lockdown](workloads/fabric/images/20-public-report-4th-row-after-lockdown.jpeg)
 
@@ -1884,6 +2077,19 @@ Layer 3 extends the shared Layer 1 platform with a private Foundry spoke,
 network-injected Agent Service, private supporting PaaS services, and APIM
 publication. It consumes the private Azure Monitor foundation already deployed
 in Stage 40 rather than creating another AMPLS or duplicate Monitor DNS zones.
+
+The topology combines the deployed private foundation with the target runtime
+path. Solid components show deployed network, APIM, private endpoints, BYO
+services, and monitoring; dashed blue paths and grey target components show the
+pending Hosted Agent and APIM API/policy flow. In that target flow, private
+callers enter APIM through its Gateway private endpoint, and APIM/agent identities
+use private DNS and five service endpoints to reach Foundry, Search, Storage,
+Cosmos DB, and ACR. Agent, `mcp-subnet`, and APIM integration egress is forced
+through the Layer 1 firewall; the PE subnet has no forced-egress UDR, so private
+endpoint service traffic remains direct. Application Insights telemetry uses the
+shared AMPLS path to central Log Analytics.
+
+![Layer 3 topology — private Foundry with governed AI gateway](docs/images/06-foundry-private-agent.png)
 
 ### 16. Validate Layer 3 prerequisites
 
@@ -2005,15 +2211,23 @@ validation text.
 
 **Foundry subnet inventory and delegation** — the Agent and MCP/tools subnets
 are delegated to `Microsoft.App/environments`, while the PE subnet remains
-dedicated to private endpoints. Both delegated subnets use the Foundry route
-table.
+dedicated to private endpoint NICs. Delegation authorizes the managed agent
+environment to attach runtime infrastructure to those customer subnets; it does
+not grant arbitrary access to the VNet. The inventory proves the subnet split,
+and the delegation image proves the agent subnet is ready for network injection.
+Both delegated subnets use the Foundry route table; the PE subnet intentionally
+does not receive the forced-egress UDR.
 
 ![Layer 3 — Foundry subnet inventory](workloads/foundry/images/l3-01a-foundry-subnet-inventory.png)
 
 ![Layer 3 — Agent subnet delegation](workloads/foundry/images/l3-01b-agent-subnet-delegation.png)
 
 **Hub transit** — the Foundry-to-hub peering is Connected/FullyInSync with
-forwarded traffic enabled, and `0.0.0.0/0` routes to Azure Firewall `10.0.0.4`.
+forwarded traffic enabled, giving delegated workloads a path to centralized DNS,
+monitoring, and firewall transit. The `0.0.0.0/0` route sends non-private egress
+from Agent/tools subnets to Azure Firewall `10.0.0.4`; peering alone would not
+force that path. The images prove control-plane connectivity and UDR intent,
+while firewall logs prove actual runtime traversal.
 
 ![Layer 3 — Foundry-to-hub peering](workloads/foundry/images/l3-02a-foundry-hub-peering.png)
 
@@ -2021,12 +2235,18 @@ forwarded traffic enabled, and `0.0.0.0/0` routes to Azure Firewall `10.0.0.4`.
 
 **Foundry resource inventory** — the resource group contains the private Foundry
 account/project, BYO Storage/Cosmos/Search, Premium ACR, VNet, route table,
-Application Insights, and private endpoints.
+Application Insights, and private endpoints. The inventory is a completeness
+check across independently managed dependencies; it does not prove their network
+or RBAC relationships, which the following evidence isolates.
 
 ![Layer 3 — Foundry resource inventory](workloads/foundry/images/l3-00-foundry-resource-inventory.png)
 
 **Private endpoint inventory** — all five workload private endpoints are in
-Sweden Central.
+Sweden Central: Foundry `account`, Storage `blob`, Cosmos DB `Sql`, Search
+`searchService`, and ACR `registry`. Each endpoint gives the spoke a private IP
+for one service subresource, avoiding a public data-plane route. The image proves
+the five endpoint resources exist; approval, DNS, and TCP checks remain separate
+acceptance gates.
 
 ![Layer 3 — private endpoint inventory](workloads/foundry/images/l3-03a-private-endpoint-inventory.png)
 
@@ -2034,31 +2254,50 @@ Sweden Central.
 `pe-subnet`, targets the Foundry `account` subresource, and is
 `Succeeded`/`Approved`. ARM validation confirms the Storage `blob`, Cosmos
 `Sql`, Search `searchService`, and ACR `registry` endpoints are also Approved.
+Approval means Azure accepted each private-link connection; it does not by
+itself prove clients resolve the service FQDN to the endpoint NIC or can
+authenticate. Capture private DNS/TCP and managed-identity tests for that proof.
 
 ![Layer 3 — approved Foundry private endpoint](workloads/foundry/images/l3-03b-private-endpoint-connections.png)
 
-**Foundry public access** — disabled, making private endpoints the exclusive
-inbound path.
+**Foundry public access** — `publicNetworkAccess` is Disabled and the default
+network ACL action is Deny, so the customer access path is the Foundry private
+endpoint rather than an IP allowlist. The image proves the account setting; an
+outside-client denial and private-client API call prove effective enforcement.
 
 ![Layer 3 — Foundry public access disabled](workloads/foundry/images/l3-04a-foundry-public-access-disabled.png)
 
 **Foundry network injection** — Standard Agent is bound to the delegated
-`agent-subnet`; subscription/resource-group details are redacted.
+`agent-subnet` with `useMicrosoftManagedNetwork = false`. This places agent
+runtime networking under the spoke's DNS and route controls instead of a
+Microsoft-managed network. The image proves Azure accepted the subnet binding;
+runtime source/firewall evidence is required after an agent is deployed.
 
 ![Layer 3 — Foundry network injection](workloads/foundry/images/l3-04b-foundry-network-injection.png)
 
-**Search managed identity** — system-assigned identity is On; identifiers are
-redacted.
+**Search managed identity** — system-assigned identity is On, allowing Search
+itself to authenticate to supported Azure dependencies without stored
+credentials. This identity is distinct from the Foundry project identity that
+calls Search. The image proves identity creation; project-to-Search access is
+proved by the project role assignments and a grounded query.
 
 ![Layer 3 — Search managed identity](workloads/foundry/images/l3-05a-search-managed-identity.png)
 
 **Search capacity** — Standard tier, two replicas, one partition, and two search
-units, providing the read SLA baseline.
+units. Two replicas meet the documented replica baseline for query availability,
+while one partition is sufficient for the approved reference data volume. The
+image proves deployed capacity, not measured latency or workload sizing; those
+must be validated with representative indexing/query tests.
 
 ![Layer 3 — Search Standard capacity](workloads/foundry/images/l3-05b-search-standard-capacity.png)
 
 **Search network and API isolation** — public network access is Disabled and API
-access control is set to role-based access only.
+access control is set to role-based access only. `networkRuleSet.bypass = None`
+prevents a trusted-service bypass, and `disableLocalAuth = true` removes admin
+and query-key authentication. Together, the images prove the intended access
+model is private endpoint plus Entra RBAC. The role assignment and runtime query
+proof are still required in the placeholder below and Step 20; these two images
+prove configuration only.
 
 ![Layer 3 — Search public access disabled](workloads/foundry/images/l3-05c-search-network-isolation.png)
 
@@ -2066,14 +2305,23 @@ access control is set to role-based access only.
 
 > **Screenshot placeholder — `l3-05d-search-project-roles.png`**: project
 > identity has Search Service Contributor and Search Index Data Contributor.
+> These roles separate service/index management from data access and are the
+> authorization half of the private Search path; redact principal IDs.
 
-**Foundry project identity** — system-assigned identity is On; identifiers are
-redacted.
+**Foundry project identity** — system-assigned identity is On. This project-scoped
+principal receives the Storage, Cosmos DB, Search, ACR, and monitoring roles used
+by project/agent operations, avoiding credentials in connection definitions.
+The image proves the principal exists; the role inventory and runtime operations
+prove least-privilege access.
 
 ![Layer 3 — Foundry project identity](workloads/foundry/images/l3-06a-project-managed-identity.png)
 
 **Project BYO connections** — each connection uses Entra ID (`AAD`) and points
-to the customer-owned service endpoint.
+to the customer-owned service endpoint. A connection is metadata that tells the
+project which endpoint and category to use; it does not contain a shared key and
+does not itself grant access. These three images prove Storage, Cosmos DB, and
+Search are registered with AAD authentication; role assignments plus runtime
+read/write tests prove authorization.
 
 ![Layer 3 — Storage project connection](workloads/foundry/images/l3-06b1-storage-connection.png)
 
@@ -2082,7 +2330,11 @@ to the customer-owned service endpoint.
 ![Layer 3 — Search project connection](workloads/foundry/images/l3-06b3-search-connection.png)
 
 **Capability hosts** — the account Agents host is bound to the delegated subnet;
-the project host is Succeeded and references Storage, Cosmos DB, and Search.
+the project host is Succeeded and references Storage, Cosmos DB, and Search as
+its storage, thread-storage, and vector-store connections. The account host
+enables the agent capability at account/network scope; the project host binds
+that capability to the project's BYO services. `Succeeded` proves Azure accepted
+the host definitions, not that every runtime operation has been exercised.
 
 ![Layer 3 — account capability host](workloads/foundry/images/l3-06c-account-capability-host.png)
 
@@ -2092,10 +2344,15 @@ the project host is Succeeded and references Storage, Cosmos DB, and Search.
 
 > **Screenshot placeholder — `l3-06e-project-resource-roles.png`**: capture the
 > complete project identity role set on Storage, Cosmos DB, Search, ACR, App
-> Insights, and Log Analytics.
+> Insights, and Log Analytics. This is the evidence that AAD connections have
+> matching authorization; redact principal, tenant, and subscription IDs.
 
 **Private monitoring** — Application Insights public ingestion/query are
-restricted and the component is associated with the central AMPLS.
+restricted, local authentication is disabled, and the workspace-based component
+is associated with the central AMPLS. This prevents public telemetry fallback
+and reuses the landing zone's private Monitor DNS/endpoint path. The images prove
+configuration and scope membership; an OpenTelemetry event queried from the
+central workspace is still required to prove ingestion.
 
 ![Layer 3 — Application Insights public access restricted](workloads/foundry/images/l3-07a-foundry-appinsights-public-restricted.png)
 
@@ -2129,19 +2386,41 @@ terraform plan -detailed-exitcode -var-file="$AI_GATEWAY_TFVARS_FILE"
 
 Azure requires public network access during initial APIM activation. The first
 apply is therefore a bootstrap phase only. The second apply must disable public
-network access, and the final detailed-exit-code plan must return `0`.
+network access immediately after the Gateway private endpoint exists, and the
+final detailed-exit-code plan must return `0`. Never publish an API or send test
+traffic during the temporary bootstrap state.
 
-The root creates APIM Standard v2, its dedicated delegated/NSG/UDR subnet,
-inbound Private Endpoint, central DNS, managed identity, LAW diagnostics, and
-Application Insights logger. Model/agent APIs and FinOps enforcement are added
-after the Hosted Agent endpoint exists.
+The root creates APIM Standard v2, its dedicated delegated/NSG/UDR integration
+subnet, inbound Private Endpoint, central DNS, managed identity, LAW diagnostics,
+and Application Insights logger. Model/agent APIs and FinOps enforcement are
+added after the Hosted Agent endpoint exists.
 
-> **Screenshot placeholder — `l3-08-apim-private-network.png`**: Standard v2,
-> public access disabled, inbound PE Approved, outbound VNet integration enabled.
+> **Evidence status:** APIM infrastructure is deployed and Terraform reports no
+> drift, but screenshots `l3-08a` and `l3-08b` have not yet been captured. API
+> and policy screenshots `l3-09a` and `l3-09b` cannot be captured until the
+> Hosted Agent backend is deployed and published.
 
-> **Screenshot placeholder — `l3-09-apim-ai-policies.png`**: model/agent APIs,
-> managed-identity backend, token limits/metrics, content safety, rate limits,
-> and semantic-cache policy where supported.
+> **Screenshot placeholder — `l3-08a-apim-private-network.png`**: capture
+> Standard v2, public access Disabled, the Gateway private endpoint Approved,
+> and outbound VNet integration on `apim-integration-subnet`. This proves the
+> intended ingress/egress configuration; a private DNS lookup and gateway
+> invocation are required to prove runtime reachability.
+
+> **Screenshot placeholder — `l3-08b-apim-managed-identity.png`**: capture the
+> APIM system identity and its `Monitoring Metrics Publisher` assignment on
+> Application Insights. This proves keyless logger authorization. Backend model
+> or agent roles are added and evidenced only when those APIs are published.
+
+> **Screenshot placeholder — `l3-09a-apim-model-agent-apis.png`**: after Hosted
+> Agent deployment, capture separate model and agent API definitions and their
+> private backend targets. Inventory proves publication, while invocation proves
+> backend connectivity and authentication.
+
+> **Screenshot placeholder — `l3-09b-apim-ai-policies.png`**: capture the
+> reviewed policy chain for managed-identity backend authentication, token
+> metrics/limits, content safety, rate limits, and semantic cache where the SKU
+> supports it. Include policy test results; a policy XML screen alone does not
+> prove enforcement.
 
 ### 19. Deploy the Foundry Hosted Agent
 
@@ -2150,14 +2429,32 @@ after the Hosted Agent endpoint exists.
 The first agent is Python, Responses protocol, gpt-5-mini, and private AI Search
 grounding. Deploy from a client with private Foundry/ACR DNS and data-plane
 reachability. Authenticate interactively with `azd auth login`; never automate
-or record that browser login.
+or record that browser login. Responses is the invocation contract; private
+Search grounding means the agent must retrieve approved source content using
+the project identity over Search's private endpoint before composing its answer.
 
-> **Screenshot placeholder — `l3-10-hosted-agent-active.png`**: Hosted Agent
-> version Active with Responses protocol, image/runtime, identity, and private
-> project visible; do not expose secrets.
+> **Evidence status:** the Hosted Agent is not deployed yet, so `l3-10a` through
+> `l3-11b` are acceptance requirements, not claims of completed evidence.
 
-> **Screenshot placeholder — `l3-11-hosted-agent-search-response.png`**:
-> successful grounded response through private Search and the governed APIM path.
+> **Screenshot placeholder — `l3-10a-hosted-agent-active.png`**: capture the
+> Hosted Agent version as Active with Responses protocol, Python runtime/image,
+> and project association. Active proves deployment readiness, not Search or BYO
+> service access; do not expose registry credentials or identifiers.
+
+> **Screenshot placeholder — `l3-10b-hosted-agent-identity.png`**: capture the
+> runtime identity and only the roles required for image pull, Search grounding,
+> state persistence, and telemetry. This proves the intended blast-radius
+> boundary; redact all principal IDs.
+
+> **Screenshot placeholder — `l3-11a-private-search-grounded-response.png`**:
+> capture a successful response with a verifiable citation/source from the test
+> index and correlate it with Search/firewall telemetry. The citation proves
+> grounding behavior; logs prove the private path and identity used.
+
+> **Screenshot placeholder — `l3-11b-agent-byo-state.png`**: capture resulting
+> Storage agent files, Cosmos DB thread state, and Search index/vector artifacts
+> created by the same invocation window. These artifacts prove BYO persistence;
+> redact content and identifiers not required for verification.
 
 ### 20. Run final Layer 3 validation
 
@@ -2173,9 +2470,21 @@ or record that browser login.
 | APIM | Private invocation, token metric, throttling, and content policy tests pass |
 | Terraform | Foundry, gateway, firewall, and platform roots return detailed exit code `0` |
 
-> **Screenshot placeholder — `l3-12-layer3-final-validation.png`**: final private
-> invocation plus supporting DNS/telemetry evidence, with tokens and identifiers
-> redacted as required.
+Capture final validation as separate evidence rather than one overloaded image:
+
+- **`l3-12a-private-dns-validation.png`** — private FQDNs resolve to the expected
+  endpoint address ranges; redact subscription/resource IDs.
+- **`l3-12b-firewall-runtime-rules.png`** — allow/deny logs for the same test
+  window prove Agent/tools/APIM egress traversed the hub firewall.
+- **`l3-12c-private-telemetry.png`** — a correlated OpenTelemetry event proves
+  private Application Insights ingestion; do not expose message content.
+- **`l3-12d-terraform-no-drift.png`** — Foundry, gateway, and firewall roots each
+  return detailed exit code `0`, proving code/state convergence.
+
+The resource-isolation images `l3-13a` through `l3-13g` complete the proof by
+showing model readiness, Storage/Cosmos/ACR public-access controls, private DNS
+links, and firewall diagnostics. Configuration screenshots must be paired with
+the runtime tests above before Layer 3 is declared complete.
 
 For implementation ownership and upstream deviations, see
 [workloads/foundry/README.md](workloads/foundry/README.md) and
@@ -2522,6 +2831,13 @@ endpoint tunnels over 443 to the `.c` private-endpoint IP. No 1433 rule was
 needed.
 
 #### Step 3 — Create the gateway SQL connection and bind the model
+
+The two screenshots in this step prove configuration and connectivity at
+different layers. The form records the workspace-specific `z{xy}` hostname and
+OAuth2/gateway choices required after lockdown; the green connection result
+proves OPDG can resolve that hostname to the workspace private endpoint and
+reach the SQL analytics service over TCP 443. The later semantic-model refresh
+is still required to prove Workspace B is bound to this connection.
 
 1. In **Manage connections and gateways**, select **+ New**, choose
    **On-premises**, and pick the OPDG cluster (`azlab-gateway`). Set

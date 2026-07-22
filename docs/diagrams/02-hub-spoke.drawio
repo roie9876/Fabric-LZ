@@ -5,7 +5,7 @@
         <mxCell id="0"/>
         <mxCell id="1" parent="0"/>
 
-        <mxCell id="eyebrow" value="AZURE LANDING ZONE  /  NETWORK TOPOLOGY" style="text;html=1;fontSize=12;fontStyle=1;fontColor=#117865;fontFamily=Helvetica Neue;letterSpacing=1;" vertex="1" parent="1"><mxGeometry x="54" y="28" width="520" height="20" as="geometry"/></mxCell>
+        <mxCell id="eyebrow" value="LAYER 1  /  PLATFORM FOUNDATION" style="text;html=1;fontSize=12;fontStyle=1;fontColor=#117865;fontFamily=Helvetica Neue;letterSpacing=1;" vertex="1" parent="1"><mxGeometry x="54" y="28" width="520" height="20" as="geometry"/></mxCell>
         <mxCell id="title" value="Private hub-and-spoke foundation" style="text;html=1;fontSize=34;fontStyle=1;fontColor=#20242B;fontFamily=Helvetica Neue;" vertex="1" parent="1"><mxGeometry x="52" y="52" width="760" height="46" as="geometry"/></mxCell>
         <mxCell id="subtitle" value="Classic VNet peering • Azure Firewall transit • private monitoring • controlled egress" style="text;html=1;fontSize=16;fontColor=#5B5F66;fontFamily=Helvetica Neue;" vertex="1" parent="1"><mxGeometry x="55" y="101" width="920" height="26" as="geometry"/></mxCell>
 
