@@ -2138,22 +2138,35 @@ bridge for both:
 flowchart LR
    SQL["Private SQL Server<br/>source of record"]
    GW["OPDG cluster<br/>private customer network"]
+  GWS["Fabric gateway cloud service<br/>Azure Relay / Service Bus"]
    PE["Workspace A private endpoint<br/>Fabric spoke"]
    LH["Workspace A<br/>Lakehouse managed Delta"]
    SQLEP["Workspace A<br/>read-only SQL analytics endpoint"]
    MODEL["Workspace B<br/>Import semantic model"]
    REPORT["Workspace B<br/>Report"]
 
-   SQL -->|"1. TCP 1433<br/>source connection"| GW
-   GW -->|"2. Copy job over approved<br/>Fabric/private-link path"| PE
+  GW -->|"1. OPDG initiates private<br/>TCP 1433 query"| SQL
+  SQL -->|"Rows return on the<br/>established session"| GW
+  GW -->|"2. OPDG initiates outbound<br/>Fabric/private-link traffic"| PE
    PE --> LH
    LH -->|"Automatic metadata/data sync"| SQLEP
-   MODEL -->|"3. Scheduled/manual refresh<br/>bound to gateway"| GW
-   GW -->|"4. OAuth2 + z{xy} private FQDN<br/>HTTPS 443"| PE
+  MODEL -.->|"3. Logical refresh request<br/>inside Fabric"| GWS
+  GW -->|"4. OPDG-established outbound channel<br/>receives work and returns results<br/>HTTPS 443 / Relay"| GWS
+  GW -->|"5. OPDG initiates OAuth2 + z{xy}<br/>private HTTPS 443 connection"| PE
    PE --> SQLEP
-   SQLEP -->|"5. Query rows"| MODEL
-   MODEL -->|"6. Cached model data"| REPORT
+  SQLEP -->|"Rows return through<br/>established private session"| GW
+  GWS -.->|"6. Fabric loads returned results"| MODEL
+  MODEL -->|"7. Cached model data"| REPORT
 ```
+
+Solid arrows in this diagram show network sessions and their response paths.
+Dotted arrows show Fabric control-plane orchestration; they are **not** inbound
+connections to the OPDG host. Workspace B never opens a socket to OPDG, and
+OPDG does not open a direct socket to Workspace B. OPDG first establishes an
+outbound encrypted connection to the Fabric gateway cloud service. Fabric uses
+that existing channel to deliver refresh work. OPDG then initiates the separate
+private HTTPS connection to Workspace A's SQL analytics endpoint. No inbound
+internet port or inbound firewall/NAT rule is required on the OPDG network.
 
 **Stage 1: private SQL ingestion into Workspace A**
 
@@ -2189,10 +2202,12 @@ flowchart LR
   Lakehouse name or GUID. It uses OAuth 2.0/Organizational authentication; it
   does not reuse the Basic/SQL credential from Stage 1.
 5. The semantic model's data source is explicitly bound to that gateway
-  connection. When refresh starts, Fabric sends the query work to the OPDG.
-  The gateway resolves the `z{xy}` hostname through the customer DNS path to
-  the Workspace A private endpoint and reaches the SQL analytics service over
-  HTTPS 443.
+  connection. When refresh starts, Workspace B records a logical refresh job in
+  Fabric. It does not make a network connection to the OPDG host. The gateway
+  cloud service delivers the work over the encrypted outbound channel that OPDG
+  already established to Azure Relay/Service Bus. OPDG then resolves the
+  `z{xy}` hostname through the customer DNS path and initiates HTTPS 443 to the
+  Workspace A private endpoint and SQL analytics service.
 6. In the reference lab, the private hostname follows a CNAME chain to the
   Workspace A `.c` endpoint, which is already registered in
   `privatelink.fabric.microsoft.com`. The final address is a private endpoint
@@ -2225,8 +2240,10 @@ complete:
 1. Run or schedule the Workspace A copy job: private SQL -> Lakehouse Delta.
 2. Wait for the Lakehouse SQL analytics endpoint to synchronize the new Delta
   state. OneLake can show a row before the SQL endpoint can query it.
-3. Refresh the Workspace B Import semantic model through the private OPDG
-  connection. The report then reads the newly cached model state.
+3. Refresh the Workspace B Import semantic model through the gateway binding.
+  Fabric dispatches work over OPDG's existing outbound channel; OPDG initiates
+  the private connection to Workspace A. The report then reads the newly cached
+  model state.
 
 This separation makes failures diagnosable:
 
@@ -3701,9 +3718,12 @@ is still required to prove Workspace B is bound to this connection.
    > datasource server to the `za2` FQDN via `Default.UpdateDatasources`, so it
    > matches the gateway connection's server string.
 
-4. Trigger a refresh. `CrossWorkspaceRequestNotAllowed` should be gone; traffic
-   now flows: model (B) -> gateway -> private endpoint -> Workspace A SQL
-   analytics endpoint.
+4. Trigger a refresh. `CrossWorkspaceRequestNotAllowed` should be gone. The
+  logical orchestration is model (B) -> Fabric gateway cloud service. The
+  network path is OPDG -> gateway cloud service over its pre-established
+  outbound channel, followed by OPDG -> private endpoint -> Workspace A SQL
+  analytics endpoint. Workspace B never initiates an inbound connection to the
+  OPDG host.
 
 #### Do NOT use
 
