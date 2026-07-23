@@ -1,0 +1,25 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/dataAgent/definition/dataSource/1.0.0/schema.json",
+  "artifactId": "a37a1924-1950-4224-ad4e-1fc8c324dcb4",
+  "workspaceId": "80196352-de18-4a77-853c-745ba3ea86d5",
+  "displayName": "sm_salesorders_public",
+  "type": "semantic_model",
+  "userDescription": "Governed sales orders semantic model containing SalesOrders with Amount, CustomerName, OrderDate, and OrderId.",
+  "dataSourceInstructions": "## General knowledge\nUse the SalesOrders table for all sales, order, customer, amount, total, ranking, and trend questions.\n\n## Table descriptions\nSalesOrders contains OrderId, CustomerName, OrderDate, and Amount. Amount is the sales amount column. There is no TotalAmount column.\n\n## When asked about\nFor total sales, generate read-only DAX equivalent to SUM(SalesOrders[Amount]). For order count, use COUNTROWS(SalesOrders). Generate DAX for this semantic model, never SQL. Never invent values.",
+  "metadata": null,
+  "elements": [
+    {
+      "id": "cc6fa4b9-0aa4-4df0-837b-96484a7eab2b",
+      "is_selected": true,
+      "display_name": "SalesOrders",
+      "type": "semantic_model.table",
+      "description": "Governed sales order facts.",
+      "children": [
+        { "id": "ece4aadf-d819-44a3-a46a-fccf3dd51aaf", "is_selected": true, "display_name": "OrderId", "type": "semantic_model.column", "data_type": "int64", "description": "Unique order identifier.", "children": [] },
+        { "id": "59ba0307-3a93-4f0e-8863-6ec355c187e3", "is_selected": true, "display_name": "CustomerName", "type": "semantic_model.column", "data_type": "string", "description": "Customer name for the order.", "children": [] },
+        { "id": "51603aaa-55c9-4f1e-94e7-a7ba7fdbaacc", "is_selected": true, "display_name": "OrderDate", "type": "semantic_model.column", "data_type": "dateTime", "description": "Order date.", "children": [] },
+        { "id": "27debd4d-2093-429b-b071-6b82d31bc7e6", "is_selected": true, "display_name": "Amount", "type": "semantic_model.column", "data_type": "double", "description": "Sales amount. Sum this column for total sales.", "children": [] }
+      ]
+    }
+  ]
+}

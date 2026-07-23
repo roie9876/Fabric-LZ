@@ -189,6 +189,36 @@ variable "existing_fabric_workspace_id" {
   default     = ""
 }
 
+variable "fabric_data_agent_workspace_id" {
+  description = "Fabric workspace GUID containing the published Data Agent. Leave empty to skip the prompt-agent connection."
+  type        = string
+  default     = ""
+}
+
+variable "fabric_data_agent_artifact_id" {
+  description = "Published Fabric Data Agent artifact GUID. Leave empty to skip the prompt-agent connection."
+  type        = string
+  default     = ""
+}
+
+variable "fabric_prompt_model_name" {
+  description = "Model deployment used by the Fabric Data Agent prompt agent."
+  type        = string
+  default     = "gpt-4.1-mini"
+}
+
+variable "fabric_prompt_model_version" {
+  description = "Model version used by the Fabric Data Agent prompt agent."
+  type        = string
+  default     = "2025-04-14"
+}
+
+variable "fabric_prompt_model_capacity" {
+  description = "GlobalStandard capacity for the Fabric-compatible prompt model."
+  type        = number
+  default     = 10
+}
+
 ########## Optional: Azure Container Registry
 ########## Enable to create a Premium ACR with Private Endpoint for hosted agent containers.
 

@@ -297,6 +297,31 @@ resource "azapi_resource" "model_deployment" {
   }
 }
 
+resource "azapi_resource" "fabric_prompt_model_deployment" {
+  count = var.fabric_data_agent_workspace_id != "" && var.fabric_data_agent_artifact_id != "" ? 1 : 0
+
+  depends_on = [azapi_resource.ai_foundry]
+
+  type                      = "Microsoft.CognitiveServices/accounts/deployments@2025-04-01-preview"
+  name                      = var.fabric_prompt_model_name
+  parent_id                 = azapi_resource.ai_foundry.id
+  schema_validation_enabled = false
+
+  body = {
+    sku = {
+      capacity = var.fabric_prompt_model_capacity
+      name     = "GlobalStandard"
+    }
+    properties = {
+      model = {
+        name    = var.fabric_prompt_model_name
+        format  = "OpenAI"
+        version = var.fabric_prompt_model_version
+      }
+    }
+  }
+}
+
 ########## Create Private DNS Zones, Links, and Private Endpoints
 ##########
 
@@ -656,6 +681,76 @@ resource "azapi_resource" "conn_aisearch" {
   }
 }
 
+resource "azapi_resource" "conn_fabric_data_agent" {
+  count = var.fabric_data_agent_workspace_id != "" && var.fabric_data_agent_artifact_id != "" ? 1 : 0
+
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  name                      = "fabric-sales-native"
+  parent_id                 = azapi_resource.ai_project.id
+  schema_validation_enabled = false
+
+  depends_on = [azapi_resource.ai_project]
+
+  body = {
+    name = "fabric-sales-native"
+    properties = {
+      category      = "CustomKeys"
+      target        = "_"
+      authType      = "CustomKeys"
+      isSharedToAll = false
+      metadata = {
+        type = "fabric_dataagent"
+      }
+    }
+  }
+
+  sensitive_body = {
+    properties = {
+      credentials = {
+        keys = {
+          workspace-id = var.fabric_data_agent_workspace_id
+          artifact-id  = var.fabric_data_agent_artifact_id
+        }
+      }
+    }
+  }
+  sensitive_body_version = {
+    "properties.credentials.keys.workspace-id" = "1"
+    "properties.credentials.keys.artifact-id"  = "1"
+  }
+}
+
+resource "azapi_resource" "conn_acr" {
+  count = var.enable_container_registry ? 1 : 0
+
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  name                      = "acr${random_string.unique.result}"
+  parent_id                 = azapi_resource.ai_project.id
+  schema_validation_enabled = false
+
+  depends_on = [
+    azapi_resource.ai_project,
+    azurerm_role_assignment.acr_repository_reader_project,
+  ]
+
+  body = {
+    name = "acr${random_string.unique.result}"
+    properties = {
+      category      = "ContainerRegistry"
+      target        = azurerm_container_registry.acr[0].login_server
+      authType      = "ManagedIdentity"
+      isSharedToAll = false
+      credentials = {
+        clientId   = azapi_resource.ai_project.output.identity.principalId
+        resourceId = azurerm_container_registry.acr[0].id
+      }
+      metadata = {
+        ResourceId = azurerm_container_registry.acr[0].id
+      }
+    }
+  }
+}
+
 ## Create the necessary role assignments for the AI Foundry project over the resources used to store agent data
 resource "azurerm_role_assignment" "cosmosdb_operator_ai_foundry_project" {
   depends_on = [
@@ -809,6 +904,7 @@ resource "azurerm_container_registry" "acr" {
   location                      = var.foundry_location
   sku                           = "Premium"
   admin_enabled                 = false
+  role_assignment_mode          = "AbacRepositoryPermissions"
   public_network_access_enabled = var.developer_ip_cidr != "" ? true : false
   tags                          = local.tags
 
@@ -884,6 +980,21 @@ resource "azurerm_role_assignment" "acr_pull_project" {
   name                 = uuidv5("dns", "${azapi_resource.ai_project.name}${azapi_resource.ai_project.output.identity.principalId}acr${random_string.unique.result}acrpull")
   scope                = azurerm_container_registry.acr[0].id
   role_definition_name = "AcrPull"
+  principal_id         = azapi_resource.ai_project.output.identity.principalId
+}
+
+## Hosted Agents require the repository-scoped reader role even when the registry retains legacy permissions.
+resource "azurerm_role_assignment" "acr_repository_reader_project" {
+  count = var.enable_container_registry ? 1 : 0
+
+  depends_on = [
+    azapi_resource.ai_project,
+    azurerm_container_registry.acr
+  ]
+
+  name                 = uuidv5("dns", "${azapi_resource.ai_project.name}${azapi_resource.ai_project.output.identity.principalId}acr${random_string.unique.result}repositoryreader")
+  scope                = azurerm_container_registry.acr[0].id
+  role_definition_name = "Container Registry Repository Reader"
   principal_id         = azapi_resource.ai_project.output.identity.principalId
 }
 

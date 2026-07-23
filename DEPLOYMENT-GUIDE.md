@@ -28,7 +28,7 @@ The repository targets three cumulative layers:
 |---|---|---|
 | **1 — Platform** | Governance, private state, hub/firewall, DNS Resolver, private Azure Monitor/AMPLS | **Core implemented and reference-deployed; Stages 30/50 remain stubs** |
 | **2 — Fabric** | Private Workspace A, public Workspace B, OPDG ingestion, semantic model/report | **Implemented and reference-deployed** |
-| **3 — Foundry** | Private Foundry/Agent Service, AI Search, Storage, Cosmos DB, Application Insights through AMPLS, APIM publication | **Foundry foundation and private APIM implemented and reference-deployed; Hosted Agent/API publication pending** |
+| **3 — Foundry** | Private Foundry project, Fabric IQ prompt agent, external Agent Framework service, Application Insights through AMPLS, APIM publication | **Fabric IQ prompt agent deployed and verified; external Container Apps agent and APIM publication pending** |
 
 The shared network target is shown below. Layer 2 then adds a private Workspace
 A that ingests on-premises SQL into OneLake and a public Workspace B that serves
@@ -36,7 +36,8 @@ the semantic model/report through an approved data gateway path.
 
 Layer 3 extends the Foundry spoke shown in the landing-zone diagram. Its section
 provides executable Terraform for the private Foundry foundation and APIM. The
-remaining release boundary is the Hosted Agent and its APIM APIs/policies.
+Fabric IQ prompt agent is deployed and verified. The remaining release boundary
+is the external Container Apps agent and both APIM APIs/policies.
 
 ## Contents
 
@@ -66,7 +67,7 @@ remaining release boundary is the Hosted Agent and its APIM APIs/policies.
   - [16. Validate Layer 3 prerequisites](#16-validate-layer-3-prerequisites)
   - [17. Deploy private Foundry foundation](#17-deploy-private-foundry-foundation)
   - [18. Deploy private APIM AI Gateway](#18-deploy-private-apim-ai-gateway)
-  - [19. Deploy the Foundry Hosted Agent](#19-deploy-the-foundry-hosted-agent)
+  - [19. Deploy the Fabric IQ and external agents](#19-deploy-the-fabric-iq-and-external-agents)
   - [20. Run final Layer 3 validation](#20-run-final-layer-3-validation)
 - [Evidence acceptance criteria](#evidence-acceptance-criteria)
 - [Rollback order](#rollback-order)
@@ -87,8 +88,9 @@ This repository currently provides:
   and DNS zone group.
 - Optional **lab-only** SQL Server and OPDG Windows VMs in an existing simulated
   on-premises VNet.
-- Layer 3 private Foundry foundation and APIM infrastructure. The Hosted Agent
-  and its APIM APIs/policies remain behind their deployment acceptance gate.
+- Layer 3 private Foundry foundation, verified Fabric IQ prompt agent, and APIM
+  infrastructure. The external Container Apps agent and both APIM APIs/policies
+  remain behind their deployment acceptance gate.
 
 This repository does **not** deploy the following customer production
 dependencies. Their owners must complete and sign them off before the matching
@@ -177,7 +179,7 @@ the mode badge at the start of every step before you begin.
 | 3 | 16 | Validate Foundry region, quota, providers, runner, and CIDRs | ⬜ VALIDATE (CHECK) |
 | 3 | 17 | Deploy Template 19 private Foundry foundation | 🟦 TERRAFORM (RUNNER) |
 | 3 | 18 | Deploy APIM Standard v2 private AI Gateway | 🟦 TERRAFORM (RUNNER) |
-| 3 | 19 | Deploy Responses Hosted Agent with private Search | 🟦 AZD (PRIVATE CLIENT) |
+| 3 | 19 | Deploy Fabric IQ prompt agent and external Container Apps agent | 🟨 PORTAL/API + 🟦 TERRAFORM |
 | 3 | 20 | Validate private agent, gateway, telemetry, DNS, and drift | ⬜ VALIDATE (CHECK) |
 
 \* Step 9 uses Terraform only for the **lab** SQL/OPDG hosts. In a customer
@@ -198,7 +200,7 @@ flowchart TD
     S11 --> S16["16. Validate Layer 3 prerequisites<br/>⬜ VALIDATE"]
     S16 --> S17["17. Private Foundry foundation<br/>🟦 TERRAFORM"]
     S17 --> S18["18. Private APIM AI Gateway<br/>🟦 TERRAFORM"]
-    S18 --> S19["19. Foundry Hosted Agent<br/>🟦 AZD"]
+    S18 --> S19["19. Prompt + external agents<br/>🟨 API / 🟦 TERRAFORM"]
     S19 --> S20["20. Layer 3 acceptance<br/>⬜ VALIDATE"]
 
     classDef tf fill:#e3f0ff,stroke:#2b6cb0,color:#1a365d;
@@ -2080,11 +2082,12 @@ in Stage 40 rather than creating another AMPLS or duplicate Monitor DNS zones.
 
 The topology combines the deployed private foundation with the target runtime
 path. Solid components show deployed network, APIM, private endpoints, BYO
-services, and monitoring; dashed blue paths and grey target components show the
-pending Hosted Agent and APIM API/policy flow. In that target flow, private
-callers enter APIM through its Gateway private endpoint, and APIM/agent identities
-use private DNS and five service endpoints to reach Foundry, Search, Storage,
-Cosmos DB, and ACR. Agent, `mcp-subnet`, and APIM integration egress is forced
+services, monitoring, and the verified Foundry prompt agent. Dashed blue paths
+and grey target components show the pending external Container Apps and APIM
+API/policy flow. In that target flow, private callers enter APIM through its
+Gateway private endpoint. APIM and external-agent identities use private DNS and
+service endpoints to reach Foundry and ACR. The external agent, `mcp-subnet`,
+and APIM integration egress is forced
 through the Layer 1 firewall; the PE subnet has no forced-egress UDR, so private
 endpoint service traffic remains direct. Application Insights telemetry uses the
 shared AMPLS path to central Log Analytics.
@@ -2105,12 +2108,13 @@ The reference deployment uses Microsoft Template 19, pinned in
 | Agent / PE / tools subnets | `10.3.0.0/24`, `10.3.1.0/24`, `10.3.2.0/24` |
 | APIM integration subnet | `10.3.3.0/27` |
 | Search | Standard (S1), two replicas, one partition |
-| Model | gpt-5-mini `2025-08-07`, GlobalStandard, capacity 40 |
-| Hosted Agent | Responses protocol with private AI Search grounding |
+| Models | gpt-5-mini `2025-08-07` capacity 40; Fabric-compatible gpt-4.1-mini `2025-04-14` capacity 10 |
+| Fabric IQ agent | Foundry prompt agent, Responses protocol, Fabric Data Agent preview tool |
+| External agent | Agent Framework/FastAPI container targeted to private Container Apps |
 
 Verify providers, quota, APIM/Search availability, CIDR overlap, and Terraform
 `>=1.10`. The reference runner was upgraded to Terraform `1.13.5` after SHA256
-verification. Sweden Central supports Hosted Agents, Class A injection, Search
+verification. Sweden Central supports prompt agents, Class A injection, Search
 agentic retrieval, and APIM Standard v2. Premium v2 new-instance capacity is
 currently restricted in this region.
 
@@ -2393,12 +2397,13 @@ traffic during the temporary bootstrap state.
 The root creates APIM Standard v2, its dedicated delegated/NSG/UDR integration
 subnet, inbound Private Endpoint, central DNS, managed identity, LAW diagnostics,
 and Application Insights logger. Model/agent APIs and FinOps enforcement are
-added after the Hosted Agent endpoint exists.
+added after the external agent endpoint is available and the prompt-agent OBO
+route is approved.
 
 > **Evidence status:** APIM infrastructure is deployed and Terraform reports no
 > drift, but screenshots `l3-08a` and `l3-08b` have not yet been captured. API
 > and policy screenshots `l3-09a` and `l3-09b` cannot be captured until the
-> Hosted Agent backend is deployed and published.
+> external agent backend is deployed and both APIs are published.
 
 > **Screenshot placeholder — `l3-08a-apim-private-network.png`**: capture
 > Standard v2, public access Disabled, the Gateway private endpoint Approved,
@@ -2422,33 +2427,205 @@ added after the Hosted Agent endpoint exists.
 > supports it. Include policy test results; a policy XML screen alone does not
 > prove enforcement.
 
-### 19. Deploy the Foundry Hosted Agent
+### 19. Deploy the Fabric IQ and external agents
 
-> **Mode: 🟦 AZD (PRIVATE CLIENT)** — agent code/version lifecycle, not Terraform.
+> **Mode: 🟨 MANUAL (PORTAL) + 🟦 AZD/TERRAFORM (PRIVATE CLIENT)** —
+> Fabric artifacts require an applied-state evidence gate before agent deployment.
 
-The first agent is Python, Responses protocol, gpt-5-mini, and private AI Search
-grounding. Deploy from a client with private Foundry/ACR DNS and data-plane
-reachability. Authenticate interactively with `azd auth login`; never automate
-or record that browser login. Responses is the invocation contract; private
-Search grounding means the agent must retrieve approved source content using
-the project identity over Search's private endpoint before composing its answer.
+This release contains two distinct agent types:
 
-> **Evidence status:** the Hosted Agent is not deployed yet, so `l3-10a` through
-> `l3-11b` are acceptance requirements, not claims of completed evidence.
+1. `fabric-iq-prompt-agent` is a normal Foundry prompt agent using the Responses
+  protocol, `gpt-4.1-mini`, and the Microsoft Fabric Data Agent preview tool.
+  Fabric executes every data query with the signed-in user's On-Behalf-Of
+  identity. It does not use ACR, a custom image, or Hosted Agent compute.
+2. `external-agent` is a custom Agent Framework service that runs in an internal
+  Azure Container Apps environment on
+  `mcp-subnet`, uses managed identity for Foundry and telemetry, and is reachable
+  only through private APIM at `/agents/external/v1/responses`.
 
-> **Screenshot placeholder — `l3-10a-hosted-agent-active.png`**: capture the
-> Hosted Agent version as Active with Responses protocol, Python runtime/image,
-> and project association. Active proves deployment readiness, not Search or BYO
-> service access; do not expose registry credentials or identifiers.
+#### 19.1 Create and publish the Fabric semantic and ontology experience
 
-> **Screenshot placeholder — `l3-10b-hosted-agent-identity.png`**: capture the
-> runtime identity and only the roles required for image pull, Search grounding,
-> state persistence, and telemetry. This proves the intended blast-radius
-> boundary; redact all principal IDs.
+> **Current reference state (2026-07-22):** Workspace B contains semantic model
+> `sm_salesorders_public` and published Fabric Data Agent
+> `da_sales_intelligence`. The Foundry project contains the healthy
+> `fabric-sales-native` connection. Ontology evidence remains pending.
 
-> **Screenshot placeholder — `l3-11a-private-search-grounded-response.png`**:
-> capture a successful response with a verifiable citation/source from the test
-> index and correlate it with Search/firewall telemetry. The citation proves
+The tenant and capacity prerequisites were applied and refreshed on 2026-07-22.
+These screenshots prove the persisted control-plane state; successful Data Agent
+creation and invocation are still required to prove runtime readiness.
+
+**Ontology item creation enabled tenant-wide:**
+
+![Ontology tenant setting applied](workloads/fabric/images/20a-ontology-tenant-setting-applied.png)
+
+**Copilot and Azure OpenAI-powered Fabric features enabled tenant-wide:**
+
+![Copilot Azure OpenAI tenant setting applied](workloads/fabric/images/20b-data-agent-copilot-setting-applied.png)
+
+**Cross-geo Azure OpenAI processing enabled for the Israel Central capacity:**
+
+![Cross-geo processing tenant setting applied](workloads/fabric/images/20c-data-agent-cross-geo-processing-applied.png)
+
+**Cross-geo Azure OpenAI storage enabled for the Israel Central capacity:**
+
+![Cross-geo storage tenant setting applied](workloads/fabric/images/20d-data-agent-cross-geo-storage-applied.png)
+
+**Fabric capacity is F2 in Israel Central and Active:**
+
+![Active Fabric F2 capacity](workloads/fabric/images/20e-fabric-capacity-active.png)
+
+**Capacity settings and Fabric administrators (identifiers redacted):**
+
+![Fabric capacity settings redacted](workloads/fabric/images/20f-fabric-capacity-settings-redacted.png)
+
+Perform these portal steps in public Workspace B. Ontology and the Foundry
+Microsoft Fabric tool are preview features and are not production SLA gates.
+
+1. Open `sm_salesorders_public`, verify its gateway-bound refresh is still
+  successful after Workspace A lockdown, and grant the test users **Build**.
+2. Create a Fabric IQ **Ontology (preview)** named `ont_salesorders`.
+3. Define business entities such as `Customer` and `SalesOrder`, map stable
+  identifiers and properties, and define the customer-to-orders relationship.
+  Bind the ontology to the approved semantic model or its governed OneLake
+  source. Refresh the graph and verify entity instances are visible.
+4. Create a **Fabric Data Agent** named `da_sales_intelligence` and add the
+  semantic model plus ontology as its only sources. Keep the source count at or
+  below five.
+5. Add instructions that route metric questions to the semantic model (NL2DAX)
+  and relationship/business-concept questions to the ontology (NL2Ontology).
+6. Test at least one deterministic metric question and one relationship question.
+  Verify RLS/CLS and Purview restrictions by using an authorized test user.
+7. Publish the Data Agent and grant each test user Read on the agent plus the
+  required permissions on its underlying sources.
+8. Refresh every portal page before capturing evidence. Save these final-state
+  screenshots before continuing:
+  - `workloads/fabric/images/21-ontology-applied.png` — entity types,
+    relationships, bound source, and successful graph refresh.
+  - `workloads/fabric/images/22-data-agent-published.png` — published Data Agent
+    with semantic model and ontology source inventory.
+  - `workloads/fabric/images/23-data-agent-semantic-answer.png` — successful
+    NL2DAX metric answer without exposing sensitive rows.
+  - `workloads/fabric/images/24-data-agent-ontology-answer.png` — successful
+    ontology relationship answer without exposing sensitive rows.
+
+**STOP:** do not create the Foundry connection or deploy the agent until all four
+screenshots exist in the repository and have been reviewed.
+
+#### 19.2 Create the Foundry Microsoft Fabric connection
+
+1. Copy the published Data Agent `workspace_id` and `artifact_id` from its URL.
+2. In the existing Foundry project, open **Management center** > **Connected
+  resources** and create a **Microsoft Fabric** connection with those IDs.
+3. Refresh the connection page and verify the connection status is healthy.
+4. Copy the connection ARM ID into the private `azd` environment as
+  `FABRIC_PROJECT_CONNECTION_ID`; never commit it to a public configuration.
+5. Capture `workloads/foundry/images/l3-14-fabric-connection-applied.png`, showing
+  connection type and healthy state while redacting subscription and object IDs.
+
+**STOP:** the applied-state connection screenshot and an authorized-user test in
+Fabric are mandatory before deployment.
+
+#### 19.3 Create the Foundry Fabric IQ prompt agent
+
+Create a normal Foundry prompt agent named `fabric-iq-prompt-agent` with model
+`gpt-4.1-mini`. The portal marks the Fabric tool unsupported with
+`gpt-5-mini`; do not use that deployment for this integration. Configure
+`tool_choice` as `required` and attach one
+`fabric_dataagent_preview` tool whose connection ID is the project connection
+`fabric-sales-native`. Create that connection with the native **Microsoft
+Fabric (Preview)** connection form. Its Custom Keys must be named exactly
+`workspace-id` and `artifact-id` (hyphens, not underscores), and its metadata
+type is `fabric_dataagent`. Do not deploy custom code or a container for this
+agent.
+
+The applied reference agent is version `6`, status `active`, and exposes the
+Responses protocol through its Entra-protected agent endpoint. Record that
+Responses endpoint as `fabric_agent_backend_url` in the private agents tfvars
+file. APIM deliberately forwards the caller's Entra bearer token so Fabric can
+perform OBO authorization.
+
+Run the functional test as an authorized Fabric user. A service principal or
+managed identity cannot replace the delegated user for the Fabric query.
+
+The published Fabric Data Agent source must select the semantic-model elements
+it can query. An empty `elements` array lets the tool start but prevents it from
+generating a usable semantic-model query. The applied source selects the
+`SalesOrders` table and `OrderId`, `CustomerName`, `OrderDate`, and `Amount`
+columns. Agent and source instructions define total sales as
+`SUM(SalesOrders[Amount])`, require read-only DAX, and explicitly prohibit SQL
+and the nonexistent `TotalAmount` column.
+
+Before accepting the agent result, establish a direct semantic-model baseline
+with the same signed-in user. On 2026-07-22, this DAX returned 10 orders and
+total sales of `14,476.47`:
+
+```dax
+EVALUATE
+ROW(
+  "TotalSales", SUM(SalesOrders[Amount]),
+  "OrderCount", COUNTROWS(SalesOrders)
+)
+```
+
+The final Foundry test asked, **What is the total sales amount across all
+orders?** Version 6 invoked `fabric_dataagent_preview`, returned `14,476.47`,
+and included a citation to the published Fabric run. This matches the direct
+DAX baseline and is the acceptance proof; the earlier generic data-source-list
+answer is not accepted as data retrieval evidence.
+
+The non-secret applied Data Agent source selection, instructions, prompt-agent
+definition, root-cause notes, and verification procedure are recorded in
+[`workloads/fabric/data-agent/README.md`](workloads/fabric/data-agent/README.md).
+
+**Active prompt agent and supported model:**
+
+![Fabric IQ prompt agent active](workloads/foundry/images/l3-10a-fabric-prompt-agent-active.png)
+
+**Verified Fabric-grounded total matching direct DAX:**
+
+![Fabric-grounded sales total](workloads/foundry/images/l3-11a-fabric-grounded-response.png)
+
+#### 19.4 Build and deploy the external agent
+
+Build from the private runner so ACR remains private, then deploy the isolated
+agents Terraform root:
+
+```bash
+cd /home/azureuser/lz
+az acr build --registry acr2690 \
+  --image external-agent:1.0.0 agents/external-agent
+
+cd workloads/agents
+terraform init -reconfigure -backend-config=../../_private/backend.hcl
+terraform validate
+terraform plan -var-file=../../_private/agents.private.tfvars -out=agents.tfplan
+terraform show -no-color agents.tfplan
+terraform apply agents.tfplan
+terraform plan -detailed-exitcode -var-file=../../_private/agents.private.tfvars
+```
+
+The private tfvars file supplies the immutable external-agent image reference,
+APIM Entra API audience, and Foundry prompt-agent backend URL. The apply creates the internal
+Container Apps environment, external agent, RBAC, diagnostics, and both APIM APIs.
+
+> **Evidence status:** `fabric-iq-prompt-agent` version `6` is active and its
+> Fabric-grounded total matches direct DAX (`14,476.47` across 10 orders). The
+> external Container Apps agent remains pending because its Sweden Central
+> environment failed to provision. APIM routes and telemetry screenshots remain
+> acceptance requirements.
+
+> **Applied evidence — `l3-10a-fabric-prompt-agent-active.png`**: prompt agent
+> version 6 is Active with `gpt-4.1-mini`, Responses protocol, and the Fabric
+> Data Agent tool. No credentials or full resource IDs are shown.
+
+> **Screenshot placeholder — `l3-10b-fabric-prompt-agent-tool.png`**: capture the
+> attached `fabric-sales-native` tool connection and required tool choice.
+> This prompt agent has no image-pull or Hosted Agent runtime identity evidence.
+
+> **Applied evidence — `l3-11a-fabric-grounded-response.png`**: captures the
+> deterministic total `14,476.47`, Fabric citation, model, duration, token count,
+> tool call, and quality/safety metrics. The matching direct DAX baseline proves
+> the response retrieved governed semantic-model data rather than inventing it.
 > grounding behavior; logs prove the private path and identity used.
 
 > **Screenshot placeholder — `l3-11b-agent-byo-state.png`**: capture resulting
@@ -2463,12 +2640,13 @@ the project identity over Search's private endpoint before composing its answer.
 | Public access | Disabled on every PaaS service that supports it |
 | DNS | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor FQDNs resolve privately |
 | Routing | Agent/tools/APIM egress traverses the hub firewall; private endpoints remain direct |
-| Identity | Project, Hosted Agent, and APIM identities have least-privilege roles |
+| Identity | Project, prompt-agent caller, external-agent, and APIM identities have least-privilege roles |
 | BYO state | Agent files, vector data, and conversation state appear in Storage/Search/Cosmos |
 | Monitoring | Managed-identity OpenTelemetry reaches private Application Insights |
-| Agent | Responses invocation and Search grounding succeed |
+| Fabric agent | Responses invocation uses the Fabric tool; semantic-model and ontology questions succeed under OBO |
+| External agent | Private Container Apps health and Responses invocation succeed through APIM |
 | APIM | Private invocation, token metric, throttling, and content policy tests pass |
-| Terraform | Foundry, gateway, firewall, and platform roots return detailed exit code `0` |
+| Terraform | Foundry, gateway, agents, firewall, and platform roots return detailed exit code `0` |
 
 Capture final validation as separate evidence rather than one overloaded image:
 
@@ -2486,19 +2664,20 @@ showing model readiness, Storage/Cosmos/ACR public-access controls, private DNS
 links, and firewall diagnostics. Configuration screenshots must be paired with
 the runtime tests above before Layer 3 is declared complete.
 
-### 21. Target Foundry IQ + Fabric IQ integration
+### 21. Applied Foundry IQ + Fabric IQ integration
 
-The retained technical view below defines the next integration boundary without
-claiming it is deployed. A Foundry agent invokes a published Fabric data agent
+The retained technical view below describes the applied integration boundary.
+A Foundry prompt agent invokes a published Fabric data agent
 through the Microsoft Fabric tool and a Foundry project connection. Fabric uses
 the signed-in user's On-Behalf-Of identity, so source permissions, RLS/CLS, and
 Purview controls remain authoritative. The Foundry runtime managed identity and
 the Fabric user identity are separate security contexts.
 
-For the first private-link implementation, scope the Fabric data agent to
-Lakehouse, Warehouse, or SQL sources in private Workspace A. The published data
-agent, project connection, Fabric tool, APIM API, OBO permissions, and private
-runtime validation remain pending and will be specified in the agent workstream.
+The Workspace B semantic-model path is a preview demonstration. The reference
+lab proves a cited semantic-model result matching direct DAX, but it does not
+change the supported production-private baseline of Lakehouse, Warehouse, or SQL
+sources in private Workspace A. Never weaken Workspace A networking to make a
+preview path pass.
 
 ![Foundry IQ + Fabric IQ — secure target architecture](docs/images/07-foundry-iq-fabric-iq-technical.png)
 
@@ -2523,9 +2702,9 @@ The embedded screenshots are reference examples from the reference lab. Customer
 evidence must be captured in the customer environment. In the reference lab,
 Layers 1–2 have been executed and their screenshots captured (Layer 1 01-14,
 OPDG opdg-01..11, Phase 6 12-15 + walkthrough, Phase 7 16-18 + walkthrough,
-Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 Foundry foundation
-evidence is captured in the screenshot matrix above; APIM and Hosted Agent
-evidence remains incomplete. A customer run must re-capture all released-layer
+Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 Foundry foundation and
+Fabric IQ prompt-agent evidence is captured above; external-agent and APIM
+publication evidence remains incomplete. A customer run must re-capture all released-layer
 evidence in the customer tenant.
 
 ## Rollback order

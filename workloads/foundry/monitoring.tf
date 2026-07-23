@@ -48,6 +48,33 @@ resource "azurerm_application_insights" "foundry" {
   tags                         = local.tags
 }
 
+resource "azapi_resource" "conn_application_insights" {
+  type                      = "Microsoft.CognitiveServices/accounts/projects/connections@2025-04-01-preview"
+  name                      = azurerm_application_insights.foundry.name
+  parent_id                 = azapi_resource.ai_project.id
+  schema_validation_enabled = false
+
+  depends_on = [azapi_resource.ai_project]
+
+  body = {
+    name = azurerm_application_insights.foundry.name
+    properties = {
+      category      = "AppInsights"
+      target        = azurerm_application_insights.foundry.id
+      authType      = "ApiKey"
+      isSharedToAll = false
+      credentials = {
+        key = azurerm_application_insights.foundry.connection_string
+      }
+      metadata = {
+        ApiType    = "Azure"
+        ResourceId = azurerm_application_insights.foundry.id
+        location   = var.foundry_location
+      }
+    }
+  }
+}
+
 resource "azurerm_monitor_private_link_scoped_service" "foundry_application_insights" {
   provider            = azurerm.monitoring
   name                = "foundry-application-insights"

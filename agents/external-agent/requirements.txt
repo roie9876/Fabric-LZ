@@ -1,0 +1,7 @@
+agent-framework-foundry
+azure-identity
+azure-monitor-opentelemetry
+fastapi
+uvicorn[standard]
+debugpy
+agent-dev-cli>=0.0.1b260427

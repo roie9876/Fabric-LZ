@@ -1,0 +1,21 @@
+{
+  "name": "fabric-iq-prompt-agent",
+  "version": "6",
+  "definition": {
+    "kind": "prompt",
+    "model": "gpt-4.1-mini",
+    "instructions": "You are the enterprise Fabric IQ analyst. For every question about business data, sales, metrics, entities, relationships, semantic models, or ontology, use the Microsoft Fabric Data Agent tool. Preserve the signed-in user authorization boundaries. Never invent metrics, entities, relationships, or query results. State clearly when Fabric cannot answer from governed sources. Keep answers concise and include source names or citations returned by Fabric.",
+    "tools": [
+      {
+        "type": "fabric_dataagent_preview",
+        "fabric_dataagent_preview": {
+          "project_connections": [
+            {
+              "project_connection_id": "/subscriptions/f81ed7c0-efed-4b77-b948-b85407bdb710/resourceGroups/azr-sbx-lab-0001-rg-foundry/providers/Microsoft.CognitiveServices/accounts/azrsbxlab0001aif2690/projects/azr-sbx-lab-0001-project-agent/connections/fabric-sales-native"
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

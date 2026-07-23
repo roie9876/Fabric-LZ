@@ -1,0 +1,9 @@
+subscription_id_workloads = "00000000-0000-0000-0000-000000000000"
+tenant_id                 = "00000000-0000-0000-0000-000000000000"
+use_msi                  = true
+
+external_agent_image = "acr2690.azurecr.io/external-agent:1.0.0"
+api_audience         = "api://fabric-lz-agents"
+
+# Set after the first Foundry Hosted Agent version is deployed.
+fabric_agent_backend_url = ""
