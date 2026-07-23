@@ -2126,6 +2126,125 @@ Fabric item and connection mode. Confirm the selected semantic-model pattern is
 supported in the customer's tenant before committing to it. Sharing an F
 capacity does not grant Workspace B network access to Workspace A.
 
+#### 12.1 How the public semantic model reaches private data
+
+The semantic model in Workspace B does not connect directly to the original
+private SQL Server. It also does not receive automatic network access to
+Workspace A because both workspaces use the same F capacity. The applied design
+uses two separate data movements with the OPDG acting as the private-network
+bridge for both:
+
+```mermaid
+flowchart LR
+   SQL["Private SQL Server<br/>source of record"]
+   GW["OPDG cluster<br/>private customer network"]
+   PE["Workspace A private endpoint<br/>Fabric spoke"]
+   LH["Workspace A<br/>Lakehouse managed Delta"]
+   SQLEP["Workspace A<br/>read-only SQL analytics endpoint"]
+   MODEL["Workspace B<br/>Import semantic model"]
+   REPORT["Workspace B<br/>Report"]
+
+   SQL -->|"1. TCP 1433<br/>source connection"| GW
+   GW -->|"2. Copy job over approved<br/>Fabric/private-link path"| PE
+   PE --> LH
+   LH -->|"Automatic metadata/data sync"| SQLEP
+   MODEL -->|"3. Scheduled/manual refresh<br/>bound to gateway"| GW
+   GW -->|"4. OAuth2 + z{xy} private FQDN<br/>HTTPS 443"| PE
+   PE --> SQLEP
+   SQLEP -->|"5. Query rows"| MODEL
+   MODEL -->|"6. Cached model data"| REPORT
+```
+
+**Stage 1: private SQL ingestion into Workspace A**
+
+1. The Workspace A copy job uses the first OPDG connection, whose source is the
+  real customer SQL Server and database. In the lab this connection uses
+  `fabric_gateway` and TCP 1433; production uses the customer's approved TLS
+  and least-privilege credential pattern.
+2. OPDG reaches SQL privately, reads the selected table, and participates in the
+  Fabric copy flow through the approved firewall and Workspace A private-link
+  path. The copy job writes a managed Delta table into
+  `lh_onprem_private` in Workspace A.
+3. The Lakehouse exposes an automatically generated, read-only SQL analytics
+  endpoint. This endpoint is a query surface over the Lakehouse table; it is
+  not the original on-premises SQL Server and it does not move the semantic
+  model into Workspace A.
+
+**Stage 2: Workspace B semantic-model refresh from Workspace A**
+
+1. The semantic model is an **Import** model stored in Workspace B. Its source
+  is Workspace A's Lakehouse SQL analytics endpoint and database, not the
+  original SQL Server connection used by the copy job.
+2. During initial construction, while Workspace A still allows public inbound
+  access, an Organizational-account cloud connection can enumerate the SQL
+  analytics endpoint. This temporary cloud path is not valid after lockdown.
+3. After Workspace A inbound public access is denied, a refresh initiated by
+  Workspace B over that ordinary cloud connection is classified as a
+  cross-workspace public request and fails with
+  `CrossWorkspaceRequestNotAllowed`. The shared capacity does not bypass
+  Workspace A's access protector.
+4. The supported post-lockdown connection is a **second OPDG SQL connection**.
+  Its server is Workspace A's workspace-private SQL analytics hostname:
+  `<hash>.z{xy}.datawarehouse.fabric.microsoft.com`, and its database is the
+  Lakehouse name or GUID. It uses OAuth 2.0/Organizational authentication; it
+  does not reuse the Basic/SQL credential from Stage 1.
+5. The semantic model's data source is explicitly bound to that gateway
+  connection. When refresh starts, Fabric sends the query work to the OPDG.
+  The gateway resolves the `z{xy}` hostname through the customer DNS path to
+  the Workspace A private endpoint and reaches the SQL analytics service over
+  HTTPS 443.
+6. In the reference lab, the private hostname follows a CNAME chain to the
+  Workspace A `.c` endpoint, which is already registered in
+  `privatelink.fabric.microsoft.com`. The final address is a private endpoint
+  IP in the Fabric spoke. No public Workspace A endpoint and no manual
+  `datawarehouse` A record are used.
+7. The SQL analytics endpoint returns the current Lakehouse rows through OPDG.
+  Fabric imports them into the semantic model stored in Workspace B. The report
+  reads this cached model data; report viewers do not connect to Workspace A or
+  the original SQL Server for each visual interaction.
+
+The two gateway connections have different purposes and must remain distinct:
+
+| Connection | Source/target | Authentication | Purpose |
+|---|---|---|---|
+| SQL ingestion connection | Original private SQL Server and source database | Customer-approved SQL/Windows/Entra method; Basic only in the lab | Copy source rows into Workspace A Lakehouse |
+| `sql-fabric-private-z{xy}` | Workspace A private SQL analytics endpoint and Lakehouse database | OAuth 2.0 / Organizational account | Refresh the Workspace B semantic model after Workspace A lockdown |
+
+Workspace B is called **public** because its Fabric inbound networking remains
+publicly addressable under Entra Conditional Access. That does not publish the
+Lakehouse or bypass source permissions. Users see only the semantic model/report
+content allowed by Workspace B permissions, model RLS/OLS, and governance
+policies. Workspace A remains private and accepts the refresh query only through
+its workspace-level private endpoint.
+
+#### 12.2 Data freshness and failure boundaries
+
+A new source row reaches the report only after all three asynchronous stages
+complete:
+
+1. Run or schedule the Workspace A copy job: private SQL -> Lakehouse Delta.
+2. Wait for the Lakehouse SQL analytics endpoint to synchronize the new Delta
+  state. OneLake can show a row before the SQL endpoint can query it.
+3. Refresh the Workspace B Import semantic model through the private OPDG
+  connection. The report then reads the newly cached model state.
+
+This separation makes failures diagnosable:
+
+- Missing row in the Lakehouse: inspect the original SQL connection, OPDG-to-SQL
+  TCP 1433, source credential, copy-job mapping, and copy logs.
+- Row in the Lakehouse but not its SQL analytics endpoint: wait for endpoint
+  synchronization and validate the endpoint directly.
+- Row queryable through the SQL endpoint but model refresh fails: verify the
+  `z{xy}` hostname, OAuth2 gateway connection, model-to-gateway binding, private
+  DNS/CNAME result, TCP 443, and Workspace A communication policy.
+- Refresh succeeds but the report is stale: verify the report uses the expected
+  semantic model/version and that model refresh history contains the new run.
+
+**Acceptance proof:** retain the successful copy-job row counts, queryable
+Lakehouse table, private gateway connection test, model gateway binding,
+completed post-lockdown refresh, report result, and correlated DNS/firewall logs.
+No single screenshot proves the complete path.
+
 1. Obtain Workspace A's SQL analytics endpoint from the Lakehouse settings
   (Lakehouse > **Settings** > **SQL analytics endpoint** > copy the connection
   string, e.g. `<hash>.datawarehouse.fabric.microsoft.com`). The endpoint's
