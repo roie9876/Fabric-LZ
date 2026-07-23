@@ -388,6 +388,51 @@ After every apply, rerun the same plan with `-detailed-exitcode`. Continue only
 when it returns `0`. If code, variables, identity, or permissions change after a
 plan is saved, delete that plan and create a new one.
 
+### Terraform runner authentication profiles
+
+Terraform backend authentication, Azure provider authentication, and workload
+data-plane authorization are separate. Every runner profile must satisfy all
+three; a successful `az login` does not prove state access or Fabric/Foundry
+authorization.
+
+| Root | State key | Checked-in provider behavior | On-premises non-MI action |
+|---|---|---|---|
+| `platform/00-bootstrap` | `00-bootstrap.tfstate` | Environment-driven AzureRM | Inject OIDC/certificate/secret variables; no provider edit |
+| `platform/10-management-groups` | `10-management-groups.tfstate` | Environment-driven AzureRM | Inject non-MI variables and grant tenant-scope management-group rights |
+| `platform/20-connectivity-hub` | `20-connectivity-hub.tfstate` | Environment-driven AzureRM | Inject non-MI variables and grant connectivity-scope RBAC |
+| `platform/40-monitoring` | `40-monitoring.tfstate` | Environment-driven AzureRM | Inject non-MI variables and grant monitoring plus central-DNS RBAC |
+| `workloads/fabric` | `workloads-fabric.tfstate` | Environment-driven AzureRM | Inject non-MI variables; no provider edit |
+| `workloads/fabric-private-link` | `workloads-fabric-private-link.tfstate` | AzureRM/AzAPI hardcode `use_msi = true` | Apply the reviewed provider switch in Step 8.3 |
+| `workloads/onprem-lab` | `workloads-onprem-lab.tfstate` | AzureRM hardcodes `use_msi = true` | Sandbox only; apply the same provider switch when its runner is non-MI |
+| `workloads/foundry` | `workloads-foundry.tfstate` | AzureRM hardcodes `use_msi = true` | Apply the same provider switch before Step 17 |
+| `platform/35-ai-gateway` | `35-ai-gateway.tfstate` | AzureRM hardcodes `use_msi = true` | Apply the same provider switch before Step 18 |
+| `workloads/agents` | `workloads-agents.tfstate` | `use_msi=true`; false forces Azure CLI | CLI is acceptable for an approved interactive/private runner; OIDC/certificate automation requires a provider refactor |
+
+For roots whose providers are environment-driven, set `ARM_USE_MSI=false` and
+inject the approved OIDC, certificate, or client-secret values before
+`terraform init`. For roots that hardcode MSI, environment variables alone do
+not override the provider; implement and review the `use_managed_identity`
+pattern in Step 8.3 first. Do not make private resources public to accommodate
+an off-network runner.
+
+All roots using the remote backend require Entra data-plane authentication,
+**Storage Blob Data Contributor** on the state scope, private DNS resolution,
+and TCP 443 to the state Blob private endpoint. The deployment identity also
+needs the management-plane roles for that root's resources and any separate
+Fabric/Foundry data-plane roles named in the owning step.
+
+An on-premises runner must reach Azure Resource Manager, Entra, Terraform
+Registry/provider download endpoints, the private state endpoint, and each
+private data-plane endpoint used for validation. Route those paths through the
+approved hybrid connection, firewall/proxy, and hub DNS Resolver. Prefer OIDC
+federation for CI and a certificate-backed service principal for a fixed runner;
+use a client secret only as a controlled last resort.
+
+Use one non-personal identity consistently for backend and provider operations
+during a run. Never move saved plan files between runners, print environment
+variables, enable shell tracing, or persist tokens/secrets in tfvars, backend
+files, logs, screenshots, process arguments, state, or Git.
+
 ## Layer 1 — Platform foundation
 
 This topology shows the Layer 1 shared control plane: workload spokes use the
@@ -580,6 +625,31 @@ were deployed in this order:
 egress or security complete because Terraform returns no changes for those
 roots. Customer Firewall/SWG rules, Defender, policy, and CNAPP
 controls require separate approved implementations.
+
+The implemented roots have separate ownership and state boundaries:
+
+1. `00-bootstrap` declares the state resource group, private-only storage
+  account, and Blob container. It does not create the private endpoint, DNS,
+  runner, or data-plane RBAC required to use that backend; those are Day-0
+  customer prerequisites. Import precreated objects when Terraform will own
+  them rather than creating duplicates.
+2. `10-management-groups` creates the tenant management-group hierarchy. Its
+  deployment identity needs approved tenant-scope management-group permissions,
+  not merely subscription Contributor.
+3. `20-connectivity-hub` creates the hub VNet/subnets, Firewall and policy, DDoS
+  association, and DNS Resolver endpoints. Its outputs provide the firewall and
+  resolver addresses consumed by later workload routing and DNS tests.
+4. `40-monitoring` creates the central Log Analytics workspace, AMPLS, Azure
+  Monitor private endpoint, five required private DNS zones, and VNet links.
+  Deploy it only after the hub private-endpoint subnet exists.
+
+These four AzureRM providers are environment-driven; they do not hardcode MSI.
+An on-premises runner therefore needs no provider-code change: inject the
+approved non-MI variables before `terraform init`, keep Entra authentication on
+the private backend, and grant each subscription/tenant scope separately. The
+single-subscription reference lab does not prove cross-subscription RBAC or
+provider aliasing. In a real multi-subscription deployment, complete the provider
+refactor described under the supported topology before planning.
 
 Set the runner's subscription context for each implemented root:
 
@@ -899,6 +969,44 @@ drift before shutdown.
 Phase A creates the F2 capacity, Fabric spoke, private-endpoint subnet, route
 table, hub peerings, diagnostics, and `privatelink.fabric.microsoft.com` zone.
 
+#### 5.1 What Phase A does
+
+The `workloads/fabric` root creates and wires the Layer 2 Azure foundation in
+this order:
+
+1. Reads the existing hub VNet, hub Firewall private IP, and central Log
+  Analytics workspace from Layer 1.
+2. Creates the Fabric workload resource group and spoke VNet.
+3. Creates the dedicated `pe-subnet`, NSG, forced-tunnel route table, and
+  `0.0.0.0/0` route to the hub Firewall.
+4. Creates both hub-to-spoke and spoke-to-hub peerings with forwarded traffic
+  enabled. Peering is non-transitive; the UDR and Firewall provide transit.
+5. Creates the central `privatelink.fabric.microsoft.com` zone and links it to
+  the hub and Fabric spoke. Phase B later attaches the workspace endpoint to
+  this existing zone.
+6. Creates the Fabric F capacity with the approved SKU, location, and
+  administrator.
+7. Sends supported spoke diagnostics to the central Log Analytics workspace and
+  exposes the spoke, subnet, capacity, and DNS-zone IDs as Terraform outputs.
+
+Phase A does not create Fabric workspaces or restrict workspace communication
+policies. Those remain manual Fabric operations in Steps 6 and 14.
+
+#### 5.2 Phase A from an on-premises non-MI runner
+
+This root is environment-driven and does not hardcode `use_msi`; no provider
+edit is required. Use the shared non-MI profile above before `terraform init`.
+The principal needs Entra-backed state access, create/update rights in the Fabric
+workload resource group, and read plus peering/DNS/diagnostic permissions on the
+hub and monitoring dependencies. The current root expects those lookups through
+the workloads provider, so the supported release remains single-subscription.
+
+The on-premises runner must reach the private state endpoint and Azure control
+plane. It does not need direct data-plane access to Fabric merely to create the
+capacity and network, but it must resolve/reach the private endpoints used by
+the post-apply checks. Record the non-MI principal object ID, role scopes,
+backend test, plan approver, and final no-drift result.
+
 **RUNNER**
 
 ```bash
@@ -1096,14 +1204,17 @@ Skip this section when resuming the current lab; it is complete.
 
 **API**
 
-The runner managed identity needs both Azure Contributor permissions and Fabric
-Workspace A `Admin`. Use a signed-in Fabric Administrator to add the runner's
-service principal through the Fabric workspace role-assignment API. Record the
-HTTP result and read the assignment back. Do not record the bearer token.
+The Terraform deployment principal needs both its approved Azure permissions
+and Fabric Workspace A `Admin`. In the reference lab this principal is the Azure
+runner VM's managed identity; for an on-premises runner it is the approved Entra
+service principal used by Terraform. Use a signed-in Fabric Administrator to add
+that service principal through the Fabric workspace role-assignment API. Record
+the HTTP result and read the assignment back. Do not record the bearer token.
 
 Run from the authenticated operator workstation. `RUNNER_PRINCIPAL_ID` is the
-managed identity's **service principal object ID**, not its application/client
-ID.
+deployment identity's **service principal object ID**, not its
+application/client ID. This distinction applies to both managed identities and
+application service principals.
 
 ```bash
 export WORKSPACE_A_ID=<private-workspace-guid>
@@ -1167,6 +1278,223 @@ read-back. Delete `/tmp/fabric-role-add.json`; never store the token.
 
 Skip this section when resuming the current lab; it is complete and had no
 drift before shutdown.
+
+#### 8.1 What Phase B does
+
+Phase A creates the shared prerequisites: the Fabric spoke VNet, `pe-subnet`,
+hub connectivity, and the central `privatelink.fabric.microsoft.com` private DNS
+zone. Phase B runs only after Workspace A exists because the Fabric workspace
+object ID is part of the Azure resource definition.
+
+The `workloads/fabric-private-link` root performs this exact sequence:
+
+1. Reads the existing Fabric spoke resource group and `pe-subnet` created by
+  Phase A.
+2. Reads the existing `privatelink.fabric.microsoft.com` zone from the hub
+  resource group. Phase B does not create a second zone.
+3. Creates the global Azure resource
+  `Microsoft.Fabric/privateLinkServicesForFabric@2024-06-01`. Its body binds
+  the current Entra tenant ID and Workspace A object ID. This is the hidden
+  Azure-side Private Link service for that specific Fabric workspace; it is
+  not a generic VNet private-link service and it is not Workspace B.
+4. Creates an Azure private endpoint in the Fabric spoke `pe-subnet`, targets
+  the hidden service, requests the `workspace` subresource, and uses automatic
+  connection approval.
+5. Attaches the endpoint to the central Fabric private DNS zone through a
+  private DNS zone group named `workspace-private-dns`. Azure then registers
+  the workspace endpoint names against the endpoint NIC addresses.
+6. Reads the generated private-endpoint NIC and returns all allocated private
+  IP addresses. Fabric currently allocates five addresses, one each for the
+  workspace API, control, OneLake, DFS, and Blob paths.
+7. Constructs the workspace-specific API FQDN from the compact workspace GUID.
+  This output is used only for connectivity testing; it is not a credential.
+
+The root has its own remote-state key,
+`workloads-fabric-private-link.tfstate`. Do not merge this state with Phase A.
+The two Terraform-managed resources are the Fabric private-link service and the
+private endpoint; the DNS zone, subnet, VNet, and resource groups are read-only
+dependencies.
+
+Phase B does **not** disable Workspace A public inbound access. It establishes
+and tests the private path first. Step 14 changes the Fabric communication
+policy only after private DNS, TCP 443, authenticated API access, gateway
+refresh, and report validation pass. This order prevents an untested private
+path from locking operators and workloads out of Workspace A.
+
+#### 8.2 Identity and network paths used in the reference lab
+
+The reference lab runs Terraform on an Azure VM with a system-assigned managed
+identity. Four independent authorization paths are involved:
+
+| Path | Reference-lab mechanism | Required authorization |
+|---|---|---|
+| Terraform backend | Runner managed identity over the state Blob private endpoint | Storage Blob Data Contributor on the state account/container |
+| Azure control plane | Runner managed identity through AzureRM and AzAPI | Permission to read Phase A dependencies and create the Fabric private-link service/private endpoint/DNS-zone-group relationship |
+| Fabric workspace | The same service principal object behind the managed identity | Workspace A `Admin`; Azure RBAC alone is insufficient |
+| Runtime validation | Runner managed identity obtains a Fabric API token from IMDS | Workspace A access plus private DNS/TCP reachability |
+
+In the current root, both providers explicitly set `use_msi = true` in
+`workloads/fabric-private-link/versions.tf`. The reference runner also exports
+`ARM_USE_MSI=true`, `ARM_SUBSCRIPTION_ID`, and `ARM_TENANT_ID`. Therefore the
+checked-in root is intentionally pinned to managed-identity authentication.
+Running it unchanged on an on-premises VM fails because that VM has no Azure
+Instance Metadata Service (IMDS) identity endpoint.
+
+#### 8.3 Customer on-premises runner without managed identity
+
+An on-premises runner can deploy the same private architecture. It needs a
+non-MI Entra workload identity, hybrid network/DNS access, and an approved IaC
+change so the providers do not force IMDS authentication. Do not compensate by
+making the state account, Fabric workspace, or private endpoints public.
+
+Use one of these authentication methods, in this order of preference:
+
+1. **Workload identity federation (preferred for CI):** configure the customer's
+  CI identity provider to issue OIDC tokens trusted by an Entra application.
+  No long-lived Azure credential is stored on the runner.
+2. **Service principal with a certificate (preferred for a fixed on-prem VM):**
+  install the private key in the machine/customer certificate store or an
+  approved secret manager, grant only the service account access, and rotate
+  the certificate under the customer's PKI process.
+3. **Service principal with a client secret (last resort):** retrieve the secret
+  at run time from the customer secret manager, keep it only in process memory,
+  and rotate it frequently. Never put it in tfvars, backend files, shell
+  history, Terraform state, screenshots, or Git.
+
+Interactive `az login` is acceptable for a read-only operator test but is not a
+production automation identity. The identity used by `terraform plan/apply`
+must be stable, auditable, non-personal, and recoverable by the customer.
+
+Before using a non-MI identity, make a reviewed repository change that adds an
+authentication switch to the Phase B root. The minimal pattern is:
+
+```hcl
+# variables.tf
+variable "use_managed_identity" {
+  description = "Use Azure VM managed identity for AzureRM and AzAPI authentication."
+  type        = bool
+  default     = true
+}
+
+# versions.tf
+provider "azapi" {
+  subscription_id = var.subscription_id_workloads
+  tenant_id       = var.tenant_id
+  use_msi         = var.use_managed_identity
+}
+
+provider "azurerm" {
+  features {}
+  subscription_id     = var.subscription_id_workloads
+  tenant_id           = var.tenant_id
+  storage_use_azuread = true
+  use_msi             = var.use_managed_identity
+}
+```
+
+Set `use_managed_identity = false` in the customer's private tfvars file. With
+MSI disabled, AzureRM/AzAPI use the approved service-principal or OIDC
+environment variables. Apply the same reviewed authentication pattern to every
+Terraform root that the on-prem runner will execute; changing only Phase B does
+not make the rest of the landing zone non-MI compatible.
+
+For OIDC federation, provide the tenant, subscription, client ID, OIDC mode,
+and the short-lived token/token-file variables required by the selected CI
+platform. For certificate authentication, provide these process-level values
+through the approved runner service configuration:
+
+```bash
+export ARM_SUBSCRIPTION_ID=<workloads-subscription-guid>
+export ARM_TENANT_ID=<tenant-guid>
+export ARM_CLIENT_ID=<deployment-application-client-guid>
+export ARM_CLIENT_CERTIFICATE_PATH=<protected-pfx-or-pem-path>
+# Set ARM_CLIENT_CERTIFICATE_PASSWORD only through the secret manager when needed.
+export ARM_USE_MSI=false
+```
+
+For client-secret authentication, replace the certificate variables with
+`ARM_CLIENT_SECRET`, injected by the secret manager immediately before
+Terraform. Unset secret-bearing variables and clear temporary files after the
+run. Do not print `env`, enable shell tracing, or archive a process dump.
+
+After the identity variables are injected, execute Phase B from the on-prem
+runner with the same plan-review/apply lifecycle, but with MSI disabled in the
+private tfvars file from the first provider initialization:
+
+```bash
+cd /approved/path/Fabric-LZ/workloads/fabric-private-link
+export BACKEND_FILE=../../_private/backend.hcl
+export TFVARS_FILE=../../_private/customer.private.tfvars
+
+terraform init -reconfigure -backend-config="$BACKEND_FILE"
+terraform validate
+rm -f phase-b.tfplan
+terraform plan -var-file="$TFVARS_FILE" -out=phase-b.tfplan
+terraform show -no-color phase-b.tfplan
+# Human review and change approval happen here.
+terraform apply phase-b.tfplan
+terraform plan -detailed-exitcode -var-file="$TFVARS_FILE"
+```
+
+Expected final detailed exit code: `0`. If authentication, tfvars, RBAC, code,
+or network policy changes after the plan is saved, discard it and create a new
+plan. Do not transfer a plan file between runners because a saved plan can
+contain configuration and sensitive values.
+
+Backend authentication is separate from provider authentication. Keep
+`use_azuread_auth = true` in `_private/backend.hcl`; do not add a storage access
+key. The non-MI principal needs **Storage Blob Data Contributor** on the state
+container/account and must resolve/reach the Blob private endpoint. OIDC or
+service-principal environment variables must be present before `terraform init`,
+not only before `plan`.
+
+Grant the non-MI deployment principal both Azure and Fabric authorization:
+
+- Read access to the existing hub/spoke resource groups and Phase A resources.
+- Permission in the Fabric spoke resource group to create/update/delete the
+  `Microsoft.Fabric/privateLinkServicesForFabric` resource, private endpoint,
+  NIC relationship, and private DNS zone group. Use customer-approved built-in
+  roles or a reviewed custom role; do not default to subscription Owner.
+- Private DNS Zone Contributor, or the equivalent approved custom permissions,
+  on the central `privatelink.fabric.microsoft.com` zone when required by the
+  DNS-zone-group operation.
+- Workspace A `Admin` in Fabric for the **service principal object ID**. Add it
+  with the Step 7 API procedure using `type: ServicePrincipal`; do not use the
+  application/client ID where Fabric expects the service principal object ID.
+- The Fabric tenant setting that permits the approved security group of service
+  principals to call Fabric public APIs. Scope it to the deployment identity's
+  approved group rather than the entire organization, refresh the admin page,
+  and capture the applied state. This enables Fabric API authorization; it does
+  not make Workspace A network access public.
+- Storage Blob Data Contributor on the Terraform state scope.
+
+The on-premises runner also needs these network paths:
+
+- HTTPS to Azure Resource Manager and Entra endpoints through the approved
+  firewall/proxy.
+- Private DNS and TCP 443 to the state account Blob private endpoint.
+- Routing to the hub and Fabric spoke private-endpoint ranges.
+- Conditional forwarding for Azure private zones to the hub DNS Resolver
+  inbound endpoint, including `privatelink.fabric.microsoft.com` and the state
+  account's `privatelink.blob.core.windows.net` zone.
+- After apply, private DNS and TCP 443 to all five workspace endpoint names.
+
+If the customer uses an outbound TLS-inspecting proxy, validate Terraform
+provider trust, certificate chains, and Azure/Fabric endpoint exceptions before
+the change window. Never disable TLS verification as a workaround.
+
+The IMDS token command later in this section is Azure-VM-specific. On an
+on-premises runner, obtain the Fabric token with the same approved Entra
+principal through its OIDC/certificate/secret credential flow, request the
+`https://api.fabric.microsoft.com` audience, call the private workspace API
+FQDN, and discard the token immediately. Do not print or save the bearer token.
+
+**On-prem runner STOP gate:** before `terraform apply`, prove all of the
+following in the change record: non-MI provider authentication works without
+IMDS; backend initialization uses Entra data-plane RBAC; the principal is
+Workspace A Admin; ARM/Fabric/state private endpoints are reachable; private
+DNS forwarding works; and no long-lived credential appears in the plan, state,
+logs, screenshots, process arguments, or repository.
 
 **RUNNER**
 
@@ -1350,6 +1678,61 @@ prove clients receive those private addresses.
 > *Expected Terraform result* screenshots at the end of this step.
 
 Choose exactly one path.
+
+#### 9.1 What differs between production and the reference lab
+
+Path A is the production design: SQL Server and OPDG are customer-owned systems
+on the customer's network. This repository does not manage their operating
+systems, passwords, backups, gateway recovery key, or lifecycle with Terraform.
+The customer runner identity discussed elsewhere is therefore unrelated to the
+OPDG service identity and the human organizational account used to register the
+gateway.
+
+Path B is only an Azure-hosted simulation of on-premises infrastructure. The
+`workloads/onprem-lab` root does **not** create the existing simulated on-prem
+VNet, subnet, NAT/Bastion, private runner, or OPDG registration. It creates:
+
+1. Bidirectional on-prem-to-hub VNet peerings with forwarded traffic enabled.
+2. A route table on the existing simulated on-prem workload subnet, including
+  default and Fabric-spoke routes through the hub Firewall.
+3. Dedicated SQL and OPDG NSGs, NICs, and static private addresses.
+4. One SQL Server 2022 Developer Windows VM and one Windows Server OPDG VM.
+5. Random lab-only Windows and SQL gateway passwords. These values are sensitive
+  Terraform state, even though outputs are marked sensitive.
+6. SQL bootstrap that enables TCP 1433, creates `FabricHybridLab`, creates the
+  least-privilege `fabric_gateway` login, loads three deterministic rows, and
+  writes `C:\FabricHybridLab.ready` after validation.
+7. OPDG bootstrap that installs PowerShell 7.4, stages the DataGateway module and
+  official gateway installer, and writes `C:\FabricGatewayInstaller.ready`.
+
+The root deliberately stops before user-authenticated OPDG registration. Step
+10 must still be completed interactively and the recovery key must never enter
+Terraform state.
+
+#### 9.2 Step 9 runner authentication
+
+For Path A, do not run this root. Customer platform automation may provision or
+configure the real hosts under its own controls, but that work is outside this
+state and must not reuse the sandbox passwords or bootstrap scripts.
+
+For Path B, `workloads/onprem-lab/versions.tf` hardcodes `use_msi = true`. An
+on-premises Terraform runner must first apply the reviewed provider switch from
+Step 8.3 and set `use_managed_identity=false` in private tfvars. It then needs:
+
+- Entra-backed access to the private state Blob endpoint.
+- Read and peering rights on the hub VNet/Firewall resource group.
+- VM, NIC, NSG, route-table, extension, and Run Command permissions in the
+  simulated on-prem resource group.
+- HTTPS access to ARM, Entra, Terraform providers, Windows/PowerShell download
+  sources, and the approved gateway installer path through the firewall/proxy.
+- Private routing/DNS from the created OPDG VM to SQL and the five Workspace A
+  endpoint names.
+
+Because the generated administrator and SQL credentials are stored in this
+root's private state, restrict state-reader RBAC, retention, backup, and audit
+access more tightly than a root containing only network metadata. Retrieve the
+SQL output only through the approved interactive secret workflow; never through
+chat, screenshots, VM Run Command output, or CI logs.
 
 #### Path A: customer production hosts (recommended)
 
@@ -2134,6 +2517,42 @@ private runner can reach its backend and Terraform Registry.
 > **Mode: 🟦 TERRAFORM (RUNNER)** — Template 19 adaptation with isolated state
 > key `workloads-foundry.tfstate`.
 
+#### 17.1 What the Foundry root does
+
+The `workloads/foundry` root reads the Layer 1 hub/monitoring dependencies, then
+creates the Foundry resource group and spoke, delegated Agent/tools subnets,
+private-endpoint subnet, forced-egress UDR, hub peering, and central private DNS
+links. It deploys BYO Storage, Cosmos DB, AI Search, Premium ACR, Application
+Insights, the Foundry account/project, both model deployments, project
+connections, RBAC, account/project capability hosts, and private endpoints.
+
+The order matters: networking and private DNS precede private endpoints;
+customer-owned data services and identities precede AAD project connections;
+connections precede capability hosts; model deployments and project RBAC must
+be ready before agents use them. Terraform outputs the account/project IDs and
+endpoint plus subnet/ACR identifiers consumed by Steps 18-19.
+
+The Terraform **deployment identity** is not the Foundry **project identity**.
+Terraform creates and grants roles to Azure-managed runtime identities. Using an
+on-premises service principal to run Terraform does not replace those managed
+identities or put that service principal in the agent data path.
+
+#### 17.2 Foundry deployment from an on-premises non-MI runner
+
+The Foundry AzureRM provider hardcodes `use_msi = true`; apply the reviewed
+provider switch from Step 8.3 before initialization. The non-MI principal needs
+state Blob data-plane access and approved management-plane permissions for the
+resource group, spoke/hub peering, central DNS links, role assignments, private
+endpoints, Cognitive Services/Foundry resources, Search, Storage, Cosmos DB,
+ACR, and monitoring association. Role Assignment write permission is required
+because this root grants least-privilege roles to project/runtime identities.
+
+The runner must reach ARM, Entra, Terraform Registry, the private state
+endpoint, and any private endpoints used by post-apply validation. Foundry's
+public access must remain disabled; perform data-plane checks from the on-prem
+runner only when hybrid routing and conditional forwarding resolve the Foundry,
+Storage, Cosmos, Search, ACR, and Monitor names privately.
+
 ```bash
 cd /home/azureuser/lz/workloads/foundry
 export ARM_USE_MSI=true
@@ -2166,52 +2585,63 @@ subscription IDs, tenant IDs, object IDs, keys, tokens, and connection strings
 redacted. Resource names, role names, FQDN patterns, subnet delegation, status,
 and error text remain visible because they are instructional evidence.
 
-Capture and retain the complete evidence set below. A phase is not documented
-as complete until every applicable file exists and is embedded after its related
-validation text.
+Capture and retain the complete evidence set below. The **Status** column is the
+reference-lab audit as of 2026-07-23. `Captured` means the file exists and is
+embedded below. `Pending capture` means the control is deployed but no accepted
+screenshot is in the repository. `Blocked` means the evidence depends on the
+pending external-agent/APIM runtime. `N/A` means the current architecture does
+not create that artifact. A phase is complete only when every applicable item
+is `Captured` and its associated runtime test passes.
 
-| # | Save as | Required evidence |
-|---|---|---|
-| 1 | `l3-01a-foundry-subnet-inventory.png` | Agent, PE, and MCP/tools subnet names and CIDRs |
-| 2 | `l3-01b-agent-subnet-delegation.png` | `Microsoft.App/environments`, join action, Succeeded |
-| 3 | `l3-02a-foundry-hub-peering.png` | Forwarded traffic, Connected, FullyInSync, Succeeded |
-| 4 | `l3-02b-firewall-default-route.png` | `0.0.0.0/0`, VirtualAppliance, `10.0.0.4`, Succeeded |
-| 5 | `l3-03a-private-endpoint-inventory.png` | Storage, Cosmos DB, Search, Foundry, and ACR PEs |
-| 6 | `l3-03b-private-endpoint-connections.png` | Approved connection state and expected subresources |
-| 7 | `l3-03c-private-dns-resolution.png` | Redacted private FQDN resolution to PE addresses |
-| 8 | `l3-04a-foundry-public-access-disabled.png` | Foundry public access Disabled |
-| 9 | `l3-04b-foundry-network-injection.png` | Redacted delegated `agent-subnet` binding |
-| 10 | `l3-05a-search-managed-identity.png` | Search system identity On; object ID redacted |
-| 11 | `l3-05b-search-standard-capacity.png` | Standard tier, two replicas, one partition |
-| 12 | `l3-05c-search-network-isolation.png` | Public access/local auth disabled and PE Approved |
-| 13 | `l3-05d-search-project-roles.png` | Search Service Contributor and Index Data Contributor |
-| 14 | `l3-06a-project-managed-identity.png` | Foundry project system identity; object ID redacted |
-| 15 | `l3-06b-project-connections.png` | Storage, Cosmos DB, and Search project connections |
-| 16 | `l3-06c-account-capability-host.png` | Account Agents capability host Succeeded and subnet |
-| 17 | `l3-06d-project-capability-host.png` | Project host Succeeded with all three BYO connections |
-| 18 | `l3-06e-project-resource-roles.png` | Required Storage/Cosmos/Search/ACR project-MI roles |
-| 19 | `l3-07a-foundry-appinsights-public-restricted.png` | App Insights ingestion/query public inbound restricted |
-| 20 | `l3-07b-foundry-appinsights-ampls.png` | Central AMPLS scoped-resource association |
-| 21 | `l3-07c-monitoring-reader-roles.png` | Project-MI monitoring reader roles on App Insights/LAW |
-| 22 | `l3-08a-apim-private-network.png` | Standard v2, public disabled, PE, VNet integration |
-| 23 | `l3-08b-apim-managed-identity.png` | APIM system identity and backend RBAC |
-| 24 | `l3-09a-apim-model-agent-apis.png` | Model and Hosted Agent API inventory |
-| 25 | `l3-09b-apim-ai-policies.png` | MI auth, token metrics/limits, safety, rate limiting, cache |
-| 26 | `l3-10a-hosted-agent-active.png` | Active version, Responses protocol, image, project |
-| 27 | `l3-10b-hosted-agent-identity.png` | Hosted Agent identity and least-privilege roles |
-| 28 | `l3-11a-private-search-grounded-response.png` | Successful grounded response through governed path |
-| 29 | `l3-11b-agent-byo-state.png` | Resulting Storage/Search/Cosmos data artifacts |
-| 30 | `l3-12a-private-dns-validation.png` | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor private DNS |
-| 31 | `l3-12b-firewall-runtime-rules.png` | Runtime, identity, MCR, evaluation, monitoring, APIM rules |
-| 32 | `l3-12c-private-telemetry.png` | Managed-identity telemetry in private App Insights |
-| 33 | `l3-12d-terraform-no-drift.png` | All Layer 3 roots return detailed exit code `0` |
-| 34 | `l3-13a-model-deployment.png` | gpt-5-mini version, GlobalStandard SKU, capacity, Succeeded |
-| 35 | `l3-13b-storage-network-isolation.png` | Storage public access disabled and local keys disabled |
-| 36 | `l3-13c-storage-private-endpoint.png` | Storage Blob PE Approved and DNS integration |
-| 37 | `l3-13d-cosmos-network-isolation.png` | Cosmos public/local auth disabled and private endpoint |
-| 38 | `l3-13e-acr-private-access.png` | Premium ACR public access disabled and PE Approved |
-| 39 | `l3-13f-central-private-dns.png` | Foundry/Search/Cosmos/ACR zones linked to hub and spoke |
-| 40 | `l3-13g-firewall-diagnostics.png` | Firewall allow/deny diagnostics flowing to central LAW |
+| # | Save as | Required evidence | Status |
+|---|---|---|---|
+| 1 | `l3-01a-foundry-subnet-inventory.png` | Agent, PE, and MCP/tools subnet names and CIDRs | Captured |
+| 2 | `l3-01b-agent-subnet-delegation.png` | `Microsoft.App/environments`, join action, Succeeded | Captured |
+| 3 | `l3-02a-foundry-hub-peering.png` | Forwarded traffic, Connected, FullyInSync, Succeeded | Captured |
+| 4 | `l3-02b-firewall-default-route.png` | `0.0.0.0/0`, VirtualAppliance, `10.0.0.4`, Succeeded | Captured |
+| 5 | `l3-03a-private-endpoint-inventory.png` | Storage, Cosmos DB, Search, Foundry, and ACR PEs | Captured |
+| 6 | `l3-03b-private-endpoint-connections.png` | Approved connection state and expected subresources | Captured |
+| 7 | `l3-03c-private-dns-resolution.png` | Redacted private FQDN resolution to PE addresses | Pending capture |
+| 8 | `l3-04a-foundry-public-access-disabled.png` | Foundry public access Disabled | Captured |
+| 9 | `l3-04b-foundry-network-injection.png` | Redacted delegated `agent-subnet` binding | Captured |
+| 10 | `l3-05a-search-managed-identity.png` | Search system identity On; object ID redacted | Captured |
+| 11 | `l3-05b-search-standard-capacity.png` | Standard tier, two replicas, one partition | Captured |
+| 12 | `l3-05c-search-network-isolation.png` and `l3-05c2-search-local-auth-disabled.png` | Public access/local auth disabled and PE Approved | Captured |
+| 13 | `l3-05d-search-project-roles.png` | Search Service Contributor and Index Data Contributor | Pending capture |
+| 14 | `l3-06a-project-managed-identity.png` | Foundry project system identity; object ID redacted | Captured |
+| 15 | `l3-06b1-storage-connection.png`, `l3-06b2-cosmos-connection.png`, `l3-06b3-search-connection.png` | Storage, Cosmos DB, and Search project connections | Captured |
+| 16 | `l3-06c-account-capability-host.png` | Account Agents capability host Succeeded and subnet | Captured |
+| 17 | `l3-06d-project-capability-host.png` and `l3-06d2-project-capability-status.png` | Project host Succeeded with all three BYO connections | Captured |
+| 18 | `l3-06e-project-resource-roles.png` | Required Storage/Cosmos/Search/ACR project-MI roles | Pending capture |
+| 19 | `l3-07a-foundry-appinsights-public-restricted.png` | App Insights ingestion/query public inbound restricted | Captured |
+| 20 | `l3-07b-foundry-appinsights-ampls.png` | Central AMPLS scoped-resource association | Captured |
+| 21 | `l3-07c-monitoring-reader-roles.png` | Project-MI monitoring reader roles on App Insights/LAW | Pending capture |
+| 22 | `l3-08a-apim-private-network.png` | Standard v2, public disabled, PE, VNet integration | Pending capture |
+| 23 | `l3-08b-apim-managed-identity.png` | APIM system identity and monitoring RBAC | Pending capture |
+| 24 | `l3-09a-apim-agent-apis.png` | Fabric IQ prompt-agent and external-agent API inventory | Blocked |
+| 25 | `l3-09b-apim-agent-policies.png` | Entra validation, backend routing, diagnostics, and approved advanced policies | Blocked |
+| 26 | `l3-10a-fabric-prompt-agent-active.png` | Prompt agent version 6, `gpt-4.1-mini`, Fabric tool, Active | Captured |
+| 27 | `l3-10b-fabric-prompt-agent-tool.png` | Persisted `fabric_dataagent_preview` configuration using `fabric-sales-native` | Pending capture |
+| 28 | `l3-11a-fabric-grounded-response.png` | Fabric-grounded `14,476.47` response matching direct DAX | Captured |
+| 29 | `l3-11b-agent-byo-state.png` | Storage/Search/Cosmos runtime artifacts | N/A: external agent uses `store: false` |
+| 30 | `l3-12a-private-dns-validation.png` | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor/Container Apps private DNS | Blocked |
+| 31 | `l3-12b-firewall-runtime-rules.png` | Runtime, identity, MCR, evaluation, monitoring, and APIM flows | Blocked |
+| 32 | `l3-12c-private-telemetry.png` | Correlated external-agent/APIM telemetry in private App Insights | Blocked |
+| 33 | `l3-12d-terraform-no-drift.png` | All applicable Layer 3 roots return detailed exit code `0` | Pending capture |
+| 34 | `l3-13a-model-deployments.png` | `gpt-5-mini` and Fabric-compatible `gpt-4.1-mini` versions, SKUs, capacity, Succeeded | Pending capture |
+| 35 | `l3-13b-storage-network-isolation.png` | Storage public access disabled and local keys disabled | Pending capture |
+| 36 | `l3-13c-storage-private-endpoint.png` | Storage Blob PE Approved and DNS integration | Pending capture |
+| 37 | `l3-13d-cosmos-network-isolation.png` | Cosmos public/local auth disabled and private endpoint | Pending capture |
+| 38 | `l3-13e-acr-private-access.png` | Premium ACR public access disabled and PE Approved | Pending capture |
+| 39 | `l3-13f-central-private-dns.png` | Foundry/Search/Cosmos/ACR/APIM zones linked to hub and spoke | Pending capture |
+| 40 | `l3-13g-firewall-diagnostics.png` | Firewall allow/deny diagnostics flowing to central LAW | Pending capture |
+
+**Audit summary:** 19 Layer 3 items are captured, 15 deployed/control-plane
+items still need accepted screenshots, 5 final runtime items are blocked by the
+pending external-agent/APIM deployment, and 1 persistence item is not applicable
+to the stateless external agent. Capture Foundry data-plane screens only from an
+approved private-network client; do not enable public access to fill an evidence
+gap. Azure portal captures also require an authenticated portal session.
 
 **Foundry subnet inventory and delegation** — the Agent and MCP/tools subnets
 are delegated to `Microsoft.App/environments`, while the PE subnet remains
@@ -2263,6 +2693,11 @@ itself prove clients resolve the service FQDN to the endpoint NIC or can
 authenticate. Capture private DNS/TCP and managed-identity tests for that proof.
 
 ![Layer 3 — approved Foundry private endpoint](workloads/foundry/images/l3-03b-private-endpoint-connections.png)
+
+> **Screenshot placeholder — `l3-03c-private-dns-resolution.png`**: capture
+> redacted lookups from the private runner for Foundry, Storage, Cosmos DB,
+> Search, and ACR. Each service FQDN must resolve to its private-endpoint address;
+> pair the image with TCP 443 and authenticated data-plane checks.
 
 **Foundry public access** — `publicNetworkAccess` is Disabled and the default
 network ACL action is Deny, so the customer access path is the Foundry private
@@ -2362,6 +2797,11 @@ central workspace is still required to prove ingestion.
 
 ![Layer 3 — Application Insights central AMPLS association](workloads/foundry/images/l3-07b-foundry-appinsights-ampls.png)
 
+> **Screenshot placeholder — `l3-07c-monitoring-reader-roles.png`**: capture the
+> project identity's monitoring-reader assignments on Application Insights and
+> the linked Log Analytics workspace. Redact principal, tenant, subscription,
+> and role-assignment IDs while leaving role names and scopes visible.
+
 **STOP:** both capability hosts and all private endpoints must be Succeeded,
 private DNS/TCP tests must pass, and Terraform must return `0` before Step 18.
 
@@ -2369,6 +2809,36 @@ private DNS/TCP tests must pass, and Terraform must return `0` before Step 18.
 
 > **Mode: 🟦 TERRAFORM (RUNNER)** — isolated state key
 > `35-ai-gateway.tfstate`.
+
+#### 18.1 What the AI Gateway root does
+
+The `platform/35-ai-gateway` root reads the Foundry VNet/private-endpoint
+subnet, hub VNet/Firewall, central Log Analytics workspace, and Foundry
+Application Insights component. It then creates the APIM integration subnet,
+NSG, forced-egress UDR, Standard v2 APIM instance and system identity, Gateway
+private endpoint, `privatelink.azure-api.net` zone/links, diagnostics, the
+Application Insights logger, and `Monitoring Metrics Publisher` assignment.
+
+APIM activation requires a controlled two-pass apply. The bootstrap plan enables
+public network access only long enough for APIM activation and private-endpoint
+creation. The convergence plan immediately disables public access. Do not send
+traffic, publish APIs, or treat bootstrap as an accepted state. Final acceptance
+requires public access disabled, private endpoint Approved, private DNS working,
+and no Terraform drift.
+
+#### 18.2 APIM deployment from an on-premises non-MI runner
+
+This root hardcodes MSI and requires the Step 8.3 provider switch. The non-MI
+principal needs state access plus permissions for APIM, subnet delegation,
+NSG/UDR, private endpoint, central private DNS links, diagnostics, logger, and
+role assignment. The APIM system identity remains the runtime identity; the
+runner service principal must not be configured as the API backend identity.
+
+The runner must maintain ARM/state connectivity throughout both applies and
+must resolve the private APIM gateway through the hub DNS Resolver for final
+tests. If the second apply fails, stop publication and restore the approved
+locked state immediately; never leave bootstrap public access enabled for
+convenience.
 
 ```bash
 cd /home/azureuser/lz/platform/35-ai-gateway
@@ -2416,15 +2886,18 @@ route is approved.
 > Application Insights. This proves keyless logger authorization. Backend model
 > or agent roles are added and evidenced only when those APIs are published.
 
-> **Screenshot placeholder — `l3-09a-apim-model-agent-apis.png`**: after Hosted
-> Agent deployment, capture separate model and agent API definitions and their
-> private backend targets. Inventory proves publication, while invocation proves
-> backend connectivity and authentication.
+> **Screenshot placeholder — `l3-09a-apim-agent-apis.png`**: after the external
+> Container Apps agent is deployed, capture the Fabric IQ prompt-agent and
+> external-agent API definitions and their private backend targets. Inventory
+> proves publication, while invocation proves backend connectivity and
+> authentication.
 
-> **Screenshot placeholder — `l3-09b-apim-ai-policies.png`**: capture the
-> reviewed policy chain for managed-identity backend authentication, token
-> metrics/limits, content safety, rate limits, and semantic cache where the SKU
-> supports it. Include policy test results; a policy XML screen alone does not
+> **Screenshot placeholder — `l3-09b-apim-agent-policies.png`**: capture the
+> applied Entra token validation, backend routing, Authorization-header handling,
+> and Application Insights diagnostics for both APIs. The current Terraform does
+> **not** deploy token limits, content-safety, rate-limit, or semantic-cache
+> policies; add and test those controls in IaC before claiming them as applied.
+> Include positive and negative policy tests because policy XML alone does not
 > prove enforcement.
 
 ### 19. Deploy the Fabric IQ and external agents
@@ -2451,8 +2924,10 @@ This release contains two distinct agent types:
 > `fabric-sales-native` connection. Ontology evidence remains pending.
 
 The tenant and capacity prerequisites were applied and refreshed on 2026-07-22.
-These screenshots prove the persisted control-plane state; successful Data Agent
-creation and invocation are still required to prove runtime readiness.
+These screenshots prove the persisted control-plane state. The semantic-model
+Data Agent and its Foundry invocation are working, but the Fabric-side published
+agent, Fabric-side semantic answer, native Foundry connection, and optional
+ontology screenshots remain to be captured.
 
 **Ontology item creation enabled tenant-wide:**
 
@@ -2483,33 +2958,50 @@ Microsoft Fabric tool are preview features and are not production SLA gates.
 
 1. Open `sm_salesorders_public`, verify its gateway-bound refresh is still
   successful after Workspace A lockdown, and grant the test users **Build**.
-2. Create a Fabric IQ **Ontology (preview)** named `ont_salesorders`.
-3. Define business entities such as `Customer` and `SalesOrder`, map stable
+2. When ontology is in scope, create a Fabric IQ **Ontology (preview)** named
+  `ont_salesorders`.
+3. For that optional ontology path, define business entities such as `Customer`
+  and `SalesOrder`, map stable
   identifiers and properties, and define the customer-to-orders relationship.
   Bind the ontology to the approved semantic model or its governed OneLake
   source. Refresh the graph and verify entity instances are visible.
 4. Create a **Fabric Data Agent** named `da_sales_intelligence` and add the
-  semantic model plus ontology as its only sources. Keep the source count at or
-  below five.
+  semantic model as its required source. Add the ontology only when Steps 2-3
+  were completed. Keep the source count at or below five.
 5. Add instructions that route metric questions to the semantic model (NL2DAX)
-  and relationship/business-concept questions to the ontology (NL2Ontology).
-6. Test at least one deterministic metric question and one relationship question.
-  Verify RLS/CLS and Purview restrictions by using an authorized test user.
+  and, when present, relationship/business-concept questions to the ontology
+  (NL2Ontology).
+6. Test at least one deterministic metric question. Test a relationship question
+  only when ontology is in scope. Verify RLS/CLS and Purview restrictions by
+  using an authorized test user.
 7. Publish the Data Agent and grant each test user Read on the agent plus the
   required permissions on its underlying sources.
 8. Refresh every portal page before capturing evidence. Save these final-state
   screenshots before continuing:
-  - `workloads/fabric/images/21-ontology-applied.png` — entity types,
-    relationships, bound source, and successful graph refresh.
+  - `workloads/fabric/images/21-ontology-applied.png` — conditional: entity
+    types, relationships, bound source, and successful graph refresh when
+    ontology is in scope.
   - `workloads/fabric/images/22-data-agent-published.png` — published Data Agent
-    with semantic model and ontology source inventory.
+    with semantic-model source inventory and optional ontology source.
   - `workloads/fabric/images/23-data-agent-semantic-answer.png` — successful
     NL2DAX metric answer without exposing sensitive rows.
-  - `workloads/fabric/images/24-data-agent-ontology-answer.png` — successful
-    ontology relationship answer without exposing sensitive rows.
+  - `workloads/fabric/images/24-data-agent-ontology-answer.png` — conditional:
+    successful ontology relationship answer without exposing sensitive rows.
 
-**STOP:** do not create the Foundry connection or deploy the agent until all four
-screenshots exist in the repository and have been reviewed.
+**STOP:** do not create the Foundry connection or deploy the semantic-model path
+until screenshots 22 and 23 exist and have been reviewed. Screenshots 21 and 24
+are additionally mandatory when ontology is included in the deployment scope.
+
+Reference-lab Fabric/connection evidence audit as of 2026-07-23:
+
+| Save as | Status | Notes |
+|---|---|---|
+| `20a` through `20f` under `workloads/fabric/images/` | Captured | Tenant and capacity prerequisites |
+| `21-ontology-applied.png` | Pending, conditional | Ontology is not yet implemented |
+| `22-data-agent-published.png` | Pending capture | Data Agent is published and functional |
+| `23-data-agent-semantic-answer.png` | Pending capture | Result is verified through Foundry, but Fabric-side evidence is missing |
+| `24-data-agent-ontology-answer.png` | Blocked, conditional | Requires the optional ontology path |
+| `l3-14-fabric-connection-applied.png` | Pending capture | `fabric-sales-native` exists and is functional |
 
 #### 19.2 Create the Foundry Microsoft Fabric connection
 
@@ -2529,14 +3021,16 @@ Fabric are mandatory before deployment.
 
 Create a normal Foundry prompt agent named `fabric-iq-prompt-agent` with model
 `gpt-4.1-mini`. The portal marks the Fabric tool unsupported with
-`gpt-5-mini`; do not use that deployment for this integration. Configure
-`tool_choice` as `required` and attach one
+`gpt-5-mini`; do not use that deployment for this integration. Attach one
 `fabric_dataagent_preview` tool whose connection ID is the project connection
 `fabric-sales-native`. Create that connection with the native **Microsoft
 Fabric (Preview)** connection form. Its Custom Keys must be named exactly
 `workspace-id` and `artifact-id` (hyphens, not underscores), and its metadata
 type is `fabric_dataagent`. Do not deploy custom code or a container for this
-agent.
+agent. The saved version-6 definition does not expose a persisted `tool_choice`
+field, so acceptance relies on the instructions plus observed
+`fabric_dataagent_preview_call` and cited Fabric response rather than claiming
+an unverified required-tool setting.
 
 The applied reference agent is version `6`, status `active`, and exposes the
 Responses protocol through its Entra-protected agent endpoint. Record that
@@ -2587,6 +3081,29 @@ definition, root-cause notes, and verification procedure are recorded in
 
 #### 19.4 Build and deploy the external agent
 
+The image build and Terraform deployment use different authorization paths.
+`az acr build` requires the runner identity to reach the private ACR data plane
+and have the approved build/push role. The `workloads/agents` root then creates
+the internal Container Apps environment, private DNS records/links, external
+agent user-assigned identity, Container App, runtime RBAC, diagnostics, APIM
+backends/APIs/operations/policies, and API diagnostics. Its isolated state key
+is `workloads-agents.tfstate`.
+
+The external agent's user-assigned managed identity remains its Azure runtime
+identity regardless of where Terraform runs. It receives ACR pull, Foundry model
+user, and monitoring roles; APIM validates the caller and removes the bearer
+token before forwarding to the external agent. The Fabric IQ API preserves the
+authorized user's bearer token because Fabric requires OBO authorization.
+
+For an on-premises runner, ACR, Container Apps, Foundry, APIM, state, ARM, and
+private DNS paths must be reachable through the approved hybrid network. The
+agents root already exposes `use_msi`, but `use_msi=false` currently forces
+Azure CLI authentication. That is suitable only for an approved interactive or
+pre-authenticated private runner. For unattended OIDC/certificate automation,
+review and change `workloads/agents/providers.tf` so non-MI mode uses the normal
+AzureRM environment credential chain instead of forcing `use_cli=true`; then
+validate backend and provider authentication before building the image.
+
 Build from the private runner so ACR remains private, then deploy the isolated
 agents Terraform root:
 
@@ -2619,19 +3136,22 @@ Container Apps environment, external agent, RBAC, diagnostics, and both APIM API
 > Data Agent tool. No credentials or full resource IDs are shown.
 
 > **Screenshot placeholder — `l3-10b-fabric-prompt-agent-tool.png`**: capture the
-> attached `fabric-sales-native` tool connection and required tool choice.
+> persisted `fabric_dataagent_preview` tool and `fabric-sales-native` connection
+> from an approved private-network client. Redact full resource and identity IDs.
 > This prompt agent has no image-pull or Hosted Agent runtime identity evidence.
 
 > **Applied evidence — `l3-11a-fabric-grounded-response.png`**: captures the
 > deterministic total `14,476.47`, Fabric citation, model, duration, token count,
 > tool call, and quality/safety metrics. The matching direct DAX baseline proves
 > the response retrieved governed semantic-model data rather than inventing it.
-> grounding behavior; logs prove the private path and identity used.
+> Logs separately prove the private path and identity used.
 
-> **Screenshot placeholder — `l3-11b-agent-byo-state.png`**: capture resulting
-> Storage agent files, Cosmos DB thread state, and Search index/vector artifacts
-> created by the same invocation window. These artifacts prove BYO persistence;
-> redact content and identifiers not required for verification.
+> **Not applicable — `l3-11b-agent-byo-state.png`**: the implemented external
+> agent sets `default_options={"store": false}` and intentionally creates no
+> Storage agent files, Cosmos DB thread state, or Search vector artifacts. The
+> capability-host screenshots prove the BYO services are configured for future
+> stateful agents; do not fabricate runtime persistence evidence for this
+> stateless service. If persistence is later enabled, restore this evidence gate.
 
 ### 20. Run final Layer 3 validation
 
@@ -2641,11 +3161,11 @@ Container Apps environment, external agent, RBAC, diagnostics, and both APIM API
 | DNS | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor FQDNs resolve privately |
 | Routing | Agent/tools/APIM egress traverses the hub firewall; private endpoints remain direct |
 | Identity | Project, prompt-agent caller, external-agent, and APIM identities have least-privilege roles |
-| BYO state | Agent files, vector data, and conversation state appear in Storage/Search/Cosmos |
+| BYO state | N/A for the current external agent because `store: false`; if persistence is enabled later, Storage/Search/Cosmos artifacts must be evidenced |
 | Monitoring | Managed-identity OpenTelemetry reaches private Application Insights |
 | Fabric agent | Responses invocation uses the Fabric tool; semantic-model and ontology questions succeed under OBO |
 | External agent | Private Container Apps health and Responses invocation succeed through APIM |
-| APIM | Private invocation, token metric, throttling, and content policy tests pass |
+| APIM | Private invocation, Entra validation, backend routing, and telemetry tests pass; advanced token, throttling, safety, and cache controls require IaC before they can be accepted |
 | Terraform | Foundry, gateway, agents, firewall, and platform roots return detailed exit code `0` |
 
 Capture final validation as separate evidence rather than one overloaded image:
