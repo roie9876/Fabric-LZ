@@ -18,6 +18,12 @@ variable "tenant_id" {
   type        = string
 }
 
+variable "monitoring_reader_principal_ids" {
+  description = "Microsoft Entra object IDs in the workload tenant that can read Foundry traces and protected monitoring data."
+  type        = set(string)
+  default     = []
+}
+
 variable "env" {
   description = "Environment naming token."
   type        = string

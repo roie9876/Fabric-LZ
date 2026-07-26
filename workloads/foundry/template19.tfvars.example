@@ -22,6 +22,9 @@ ai_services_name_prefix = "aifoundry"
 project_name            = "agent-project"
 vnet_address_space      = ["192.168.0.0/16"]
 
+# Tenant-local Microsoft Entra object IDs for operators who need Foundry trace access.
+monitoring_reader_principal_ids = []
+
 # ==============================
 # OPTIONAL — Model deployment
 # ==============================

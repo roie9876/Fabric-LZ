@@ -26,12 +26,13 @@ The upstream sample is extended to:
 - Centralize Foundry/Search/Cosmos/ACR DNS zones in the hub and reuse the
   existing authoritative Blob zone.
 - Create workspace-based Application Insights with public ingestion/query and
-  local authentication disabled, attach it to the central LAW/AMPLS, and link
-  the Azure Monitor zones to the Foundry spoke.
+  local authentication enabled for native Foundry Traces, attach it to the
+  central LAW/AMPLS, and link the Azure Monitor zones to the Foundry spoke.
 
-Native Foundry server-side traces remain unsupported with private Application
-Insights. Hosted Agent code uses managed-identity OpenTelemetry export instead
-of weakening the monitoring resource to API-key/local authentication.
+Microsoft does not support native Foundry server-side traces with private-only
+Application Insights. The public Application Insights access is a deliberate
+compatibility exception; Foundry and Agent Service remain private and
+deny-by-default. Approved private clients continue to query through AMPLS.
 
 ## Resources
 
@@ -42,7 +43,7 @@ of weakening the monitoring resource to API-key/local authentication.
   project capability hosts.
 - BYO Storage, Cosmos DB, Search Standard, and private ACR.
 - Private endpoints and central DNS links.
-- Private Application Insights and AMPLS scoped-resource association.
+- Hybrid-access Application Insights and AMPLS scoped-resource association.
 
 The Hosted Agent version is an application release and is deployed through
 `azd ai agent`, not Terraform. APIM is owned by `platform/35-ai-gateway`.
@@ -76,12 +77,15 @@ Terraform `>= 1.10` is required. The reference runner uses `1.13.5`.
   tier. Standard Agent setup does not require S3.
 - All private endpoints Approved/Succeeded.
 - Public network access and local keys disabled on Foundry, Search, Storage,
-  Cosmos DB, ACR, and Application Insights.
+  Cosmos DB, and ACR. Application Insights public ingestion/query and local
+  authentication are the documented exception required for native Traces.
 - Both capability hosts Succeeded with the three expected BYO connection names.
 - Search reports `standard`, two replicas, one partition.
 - Foundry/Storage/Search/Cosmos/ACR/Monitor FQDNs resolve privately from the
   Foundry network and approved runner path.
 - Agent/tools subnet next hop is the hub firewall; approved outbound flows pass.
+- A fresh prompt-agent run appears in Foundry Traces and in the linked workspace
+  without exposing prompt or response content in validation evidence.
 - Final Terraform detailed exit code is `0`.
 
 The hub firewall uses the tested explicit-FQDN baseline from

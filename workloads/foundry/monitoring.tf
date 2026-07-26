@@ -41,9 +41,9 @@ resource "azurerm_application_insights" "foundry" {
   resource_group_name          = local.rg_name
   application_type             = "web"
   workspace_id                 = data.azurerm_log_analytics_workspace.central.id
-  internet_ingestion_enabled   = false
-  internet_query_enabled       = false
-  local_authentication_enabled = false
+  internet_ingestion_enabled   = true
+  internet_query_enabled       = true
+  local_authentication_enabled = true
   retention_in_days            = 90
   tags                         = local.tags
 }
@@ -100,4 +100,42 @@ resource "azurerm_role_assignment" "project_log_analytics_reader" {
   principal_id         = azapi_resource.ai_project.output.identity.principalId
 
   depends_on = [time_sleep.wait_project_identities]
+}
+
+resource "azurerm_role_assignment" "operator_application_insights_reader" {
+  for_each = var.monitoring_reader_principal_ids
+
+  name                 = uuidv5("dns", "${azurerm_application_insights.foundry.id}${each.value}loganalyticsreader")
+  scope                = azurerm_application_insights.foundry.id
+  role_definition_name = "Log Analytics Reader"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "operator_application_insights_privileged_reader" {
+  for_each = var.monitoring_reader_principal_ids
+
+  name                 = uuidv5("dns", "${azurerm_application_insights.foundry.id}${each.value}privilegedmonitoringdatareader")
+  scope                = azurerm_application_insights.foundry.id
+  role_definition_name = "Privileged Monitoring Data Reader"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "operator_log_analytics_reader" {
+  provider = azurerm.monitoring
+  for_each = var.monitoring_reader_principal_ids
+
+  name                 = uuidv5("dns", "${data.azurerm_log_analytics_workspace.central.id}${each.value}loganalyticsreader")
+  scope                = data.azurerm_log_analytics_workspace.central.id
+  role_definition_name = "Log Analytics Reader"
+  principal_id         = each.value
+}
+
+resource "azurerm_role_assignment" "operator_log_analytics_privileged_reader" {
+  provider = azurerm.monitoring
+  for_each = var.monitoring_reader_principal_ids
+
+  name                 = uuidv5("dns", "${data.azurerm_log_analytics_workspace.central.id}${each.value}privilegedmonitoringdatareader")
+  scope                = data.azurerm_log_analytics_workspace.central.id
+  role_definition_name = "Privileged Monitoring Data Reader"
+  principal_id         = each.value
 }

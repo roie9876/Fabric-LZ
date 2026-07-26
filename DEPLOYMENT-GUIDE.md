@@ -28,7 +28,7 @@ The repository targets three cumulative layers:
 |---|---|---|
 | **1 — Platform** | Governance, private state, hub/firewall, DNS Resolver, private Azure Monitor/AMPLS | **Core implemented and reference-deployed; Stages 30/50 remain stubs** |
 | **2 — Fabric** | Private Workspace A, public Workspace B, OPDG ingestion, semantic model/report | **Implemented and reference-deployed** |
-| **3 — Foundry** | Private Foundry project, Fabric IQ prompt agent, external Agent Framework service, Application Insights through AMPLS, APIM publication | **Fabric IQ prompt agent deployed and verified; external Container Apps agent and APIM publication pending** |
+| **3 — Foundry** | Private Foundry project, Fabric IQ prompt agent, external Agent Framework service, hybrid Application Insights access with AMPLS, APIM publication | **Fabric IQ prompt agent and native tracing deployed and verified; external Container Apps agent and APIM publication pending** |
 
 The shared network target is shown below. Layer 2 then adds a private Workspace
 A that ingests on-premises SQL into OneLake and a public Workspace B that serves
@@ -2609,7 +2609,11 @@ service endpoints to reach Foundry and ACR. The external agent, `mcp-subnet`,
 and APIM integration egress is forced
 through the Layer 1 firewall; the PE subnet has no forced-egress UDR, so private
 endpoint service traffic remains direct. Application Insights telemetry uses the
-shared AMPLS path to central Log Analytics.
+authenticated public endpoint for native Foundry server-side traces because
+Foundry does not support virtual-network delivery to a private-only Application
+Insights resource. The component remains associated with the central AMPLS so
+approved private clients query the linked Log Analytics workspace over Private
+Link.
 
 ![Layer 3 topology — private Foundry with governed AI gateway](docs/images/06-foundry-private-agent.png)
 
@@ -2668,6 +2672,17 @@ connections precede capability hosts; model deployments and project RBAC must
 be ready before agents use them. Terraform outputs the account/project IDs and
 endpoint plus subnet/ACR identifiers consumed by Steps 18-19.
 
+Set `monitoring_reader_principal_ids` to the tenant-local Microsoft Entra object
+IDs of operators who query monitoring data from approved private clients.
+Terraform grants each operator `Log Analytics Reader` and `Privileged
+Monitoring Data Reader` on both the Foundry Application Insights component and
+its linked central Log Analytics workspace. Do not use a home-tenant object ID
+for a guest account. These assignments are part of the Foundry root and must not
+be replaced with portal-only RBAC changes.
+The bootstrap layer must grant the Foundry deployment identity `Role Based
+Access Control Administrator` at those two monitoring resource scopes;
+subscription `Contributor` alone cannot create role assignments.
+
 The Terraform **deployment identity** is not the Foundry **project identity**.
 Terraform creates and grants roles to Azure-managed runtime identities. Using an
 on-premises service principal to run Terraform does not replace those managed
@@ -2698,7 +2713,8 @@ terraform init -reconfigure -backend-config="$FOUNDRY_BACKEND_FILE"
 terraform validate
 terraform plan -var-file="$FOUNDRY_TFVARS_FILE" -out=foundry.tfplan
 terraform show -no-color foundry.tfplan
-# Review: no destroy/replacement/public-access changes.
+# Review: no destroy/replacement; allow only approved Application Insights
+# public-access changes required for native Foundry Traces.
 terraform apply foundry.tfplan
 terraform plan -detailed-exitcode -var-file="$FOUNDRY_TFVARS_FILE"
 ```
@@ -2710,7 +2726,10 @@ before init. Do not place operator UPNs in the Foundry infrastructure tfvars.
 
 This root owns the spoke/peerings/UDR, BYO Storage/Cosmos/Search, private ACR,
 Foundry account/project/model, connections/RBAC, both capability hosts, private
-endpoints/DNS, and private Application Insights/AMPLS association.
+endpoints/DNS, and the workspace-based Application Insights/AMPLS association.
+Application Insights public ingestion/query and local authentication are enabled
+only for native Foundry server-side tracing; Foundry and its Agent Service remain
+private and deny by default.
 
 **Required screenshots (capture final refreshed state):**
 
@@ -2722,7 +2741,7 @@ redacted. Resource names, role names, FQDN patterns, subnet delegation, status,
 and error text remain visible because they are instructional evidence.
 
 Capture and retain the complete evidence set below. The **Status** column is the
-reference-lab audit as of 2026-07-23. `Captured` means the file exists and is
+reference-lab audit as of 2026-07-26. `Captured` means the file exists and is
 embedded below. `Pending capture` means the control is deployed but no accepted
 screenshot is in the repository. `Blocked` means the evidence depends on the
 pending external-agent/APIM runtime. `N/A` means the current architecture does
@@ -2749,9 +2768,10 @@ is `Captured` and its associated runtime test passes.
 | 16 | `l3-06c-account-capability-host.png` | Account Agents capability host Succeeded and subnet | Captured |
 | 17 | `l3-06d-project-capability-host.png` and `l3-06d2-project-capability-status.png` | Project host Succeeded with all three BYO connections | Captured |
 | 18 | `l3-06e-project-resource-roles.png` | Required Storage/Cosmos/Search/ACR project-MI roles | Pending capture |
-| 19 | `l3-07a-foundry-appinsights-public-restricted.png` | App Insights ingestion/query public inbound restricted | Captured |
+| 19 | `l3-07a-foundry-appinsights-public-restricted.png` | Pre-change private-only App Insights baseline | Superseded baseline |
 | 20 | `l3-07b-foundry-appinsights-ampls.png` | Central AMPLS scoped-resource association | Captured |
 | 21 | `l3-07c-monitoring-reader-roles.png` | Project-MI monitoring reader roles on App Insights/LAW | Pending capture |
+| 21a | `l3-07d-foundry-traces-working.png` | Native Foundry trace visible after hybrid App Insights access was applied | Pending capture |
 | 22 | `l3-08a-apim-private-network.png` | Standard v2, public disabled, PE, VNet integration | Pending capture |
 | 23 | `l3-08b-apim-managed-identity.png` | APIM system identity and monitoring RBAC | Pending capture |
 | 24 | `l3-09a-apim-agent-apis.png` | Fabric IQ prompt-agent and external-agent API inventory | Blocked |
@@ -2922,14 +2942,26 @@ the host definitions, not that every runtime operation has been exercised.
 > Insights, and Log Analytics. This is the evidence that AAD connections have
 > matching authorization; redact principal, tenant, and subscription IDs.
 
-**Private monitoring** — Application Insights public ingestion/query are
-restricted, local authentication is disabled, and the workspace-based component
-is associated with the central AMPLS. This prevents public telemetry fallback
-and reuses the landing zone's private Monitor DNS/endpoint path. The images prove
-configuration and scope membership; an OpenTelemetry event queried from the
-central workspace is still required to prove ingestion.
+**Hybrid monitoring for native Foundry Traces** — Microsoft documents Traces as
+unsupported when Application Insights is private-only. The applied reference
+therefore enables Application Insights public ingestion and query plus local
+authentication for the project's `ApiKey` connection. Foundry public access
+remains Disabled, its network ACL defaults to Deny, and the Application Insights
+component remains associated with the central AMPLS. Approved private clients
+continue to query Application Insights and the linked Log Analytics workspace
+through Private Link.
 
-![Layer 3 — Application Insights public access restricted](workloads/foundry/images/l3-07a-foundry-appinsights-public-restricted.png)
+This is a deliberate exception to the private-by-default PaaS policy, not a
+claim that native traces traverse AMPLS. On 2026-07-26, Terraform applied two
+in-place changes with no create, replacement, or destroy; the post-apply plan
+returned detailed exit code `0`. A new version-6 prompt-agent conversation then
+appeared in the Foundry Traces blade. A content-free KQL verification from the
+private on-premises runner returned `HTTP 200`, `AppEvents=11`, and
+`AppDependencies=3`, with the latest event at `2026-07-26T13:29:03Z`.
+
+The previous image is retained only as the pre-change private-only baseline:
+
+![Layer 3 — superseded private-only Application Insights baseline](workloads/foundry/images/l3-07a-foundry-appinsights-public-restricted.png)
 
 ![Layer 3 — Application Insights central AMPLS association](workloads/foundry/images/l3-07b-foundry-appinsights-ampls.png)
 
@@ -2937,6 +2969,11 @@ central workspace is still required to prove ingestion.
 > project identity's monitoring-reader assignments on Application Insights and
 > the linked Log Analytics workspace. Redact principal, tenant, subscription,
 > and role-assignment IDs while leaving role names and scopes visible.
+
+> **Screenshot placeholder — `l3-07d-foundry-traces-working.png`**: from an
+> approved private-network client, capture the refreshed Foundry Traces blade
+> with a post-change trace visible. Do not expose prompt/response content,
+> identity IDs, subscription IDs, tokens, or connection strings.
 
 **STOP:** both capability hosts and all private endpoints must be Succeeded,
 private DNS/TCP tests must pass, and Terraform must return `0` before Step 18.
@@ -3293,12 +3330,12 @@ Container Apps environment, external agent, RBAC, diagnostics, and both APIM API
 
 | Area | Pass condition |
 |---|---|
-| Public access | Disabled on every PaaS service that supports it |
+| Public access | Disabled on Foundry and supporting PaaS; Application Insights public ingestion/query is the documented exception required for native Foundry Traces |
 | DNS | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor FQDNs resolve privately |
 | Routing | Agent/tools/APIM egress traverses the hub firewall; private endpoints remain direct |
 | Identity | Project, prompt-agent caller, external-agent, and APIM identities have least-privilege roles |
 | BYO state | N/A for the current external agent because `store: false`; if persistence is enabled later, Storage/Search/Cosmos artifacts must be evidenced |
-| Monitoring | Managed-identity OpenTelemetry reaches private Application Insights |
+| Monitoring | Native Foundry traces reach hybrid-access Application Insights; approved clients query the linked workspace through AMPLS; custom workload telemetry uses managed identity where supported |
 | Fabric agent | Responses invocation uses the Fabric tool; semantic-model and ontology questions succeed under OBO |
 | External agent | Private Container Apps health and Responses invocation succeed through APIM |
 | APIM | Private invocation, Entra validation, backend routing, and telemetry tests pass; advanced token, throttling, safety, and cache controls require IaC before they can be accepted |
@@ -3310,8 +3347,9 @@ Capture final validation as separate evidence rather than one overloaded image:
   endpoint address ranges; redact subscription/resource IDs.
 - **`l3-12b-firewall-runtime-rules.png`** — allow/deny logs for the same test
   window prove Agent/tools/APIM egress traversed the hub firewall.
-- **`l3-12c-private-telemetry.png`** — a correlated OpenTelemetry event proves
-  private Application Insights ingestion; do not expose message content.
+- **`l3-12c-private-telemetry.png`** — a correlated custom-workload OpenTelemetry
+  event proves ingestion over the AMPLS path; native Foundry traces use the
+  authenticated public ingestion exception. Do not expose message content.
 - **`l3-12d-terraform-no-drift.png`** — Foundry, gateway, and firewall roots each
   return detailed exit code `0`, proving code/state convergence.
 
