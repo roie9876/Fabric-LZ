@@ -2771,7 +2771,7 @@ is `Captured` and its associated runtime test passes.
 | 19 | `l3-07a-foundry-appinsights-public-restricted.png` | Pre-change private-only App Insights baseline | Superseded baseline |
 | 20 | `l3-07b-foundry-appinsights-ampls.png` | Central AMPLS scoped-resource association | Captured |
 | 21 | `l3-07c-monitoring-reader-roles.png` | Project-MI monitoring reader roles on App Insights/LAW | Pending capture |
-| 21a | `l3-07d-foundry-traces-working.png` | Native Foundry trace visible after hybrid App Insights access was applied | Pending capture |
+| 21a | `l3-07d-foundry-traces-working.png` | Native Foundry trace visible after hybrid App Insights access was applied | Captured |
 | 22 | `l3-08a-apim-private-network.png` | Standard v2, public disabled, PE, VNet integration | Pending capture |
 | 23 | `l3-08b-apim-managed-identity.png` | APIM system identity and monitoring RBAC | Pending capture |
 | 24 | `l3-09a-apim-agent-apis.png` | Fabric IQ prompt-agent and external-agent API inventory | Blocked |
@@ -2970,10 +2970,9 @@ The previous image is retained only as the pre-change private-only baseline:
 > the linked Log Analytics workspace. Redact principal, tenant, subscription,
 > and role-assignment IDs while leaving role names and scopes visible.
 
-> **Screenshot placeholder — `l3-07d-foundry-traces-working.png`**: from an
-> approved private-network client, capture the refreshed Foundry Traces blade
-> with a post-change trace visible. Do not expose prompt/response content,
-> identity IDs, subscription IDs, tokens, or connection strings.
+**Native Foundry trace visible from the approved private-network client:**
+
+![Layer 3 — native Foundry trace after hybrid Application Insights access](workloads/foundry/images/l3-07d-foundry-traces-working.png)
 
 **STOP:** both capability hosts and all private endpoints must be Succeeded,
 private DNS/TCP tests must pass, and Terraform must return `0` before Step 18.
@@ -3161,20 +3160,28 @@ Microsoft Fabric tool are preview features and are not production SLA gates.
   - `workloads/fabric/images/24-data-agent-ontology-answer.png` — conditional:
     successful ontology relationship answer without exposing sensitive rows.
 
-**STOP:** do not create the Foundry connection or deploy the semantic-model path
-until screenshots 22 and 23 exist and have been reviewed. Screenshots 21 and 24
-are additionally mandatory when ontology is included in the deployment scope.
+**Published Fabric Data Agent with governed semantic-model source:**
 
-Reference-lab Fabric/connection evidence audit as of 2026-07-23:
+![Published Fabric Data Agent](workloads/fabric/images/22-data-agent-published.png)
+
+**Direct Fabric Data Agent semantic answer matching the DAX baseline:**
+
+![Fabric Data Agent semantic answer](workloads/fabric/images/23-data-agent-semantic-answer.png)
+
+The semantic-model evidence gate is complete: screenshots 22 and 23 exist and
+have been reviewed. Screenshots 21 and 24 are mandatory only if ontology is
+later included in deployment scope.
+
+Reference-lab Fabric/connection evidence audit as of 2026-07-26:
 
 | Save as | Status | Notes |
 |---|---|---|
 | `20a` through `20f` under `workloads/fabric/images/` | Captured | Tenant and capacity prerequisites |
 | `21-ontology-applied.png` | Pending, conditional | Ontology is not yet implemented |
-| `22-data-agent-published.png` | Pending capture | Data Agent is published and functional |
-| `23-data-agent-semantic-answer.png` | Pending capture | Result is verified through Foundry, but Fabric-side evidence is missing |
+| `22-data-agent-published.png` | Captured | Published Data Agent and `sm_salesorders_public` source are visible |
+| `23-data-agent-semantic-answer.png` | Captured | Direct Fabric answer `14,476.47` matches the DAX and Foundry baselines |
 | `24-data-agent-ontology-answer.png` | Blocked, conditional | Requires the optional ontology path |
-| `l3-14-fabric-connection-applied.png` | Pending capture | `fabric-sales-native` exists and is functional |
+| `l3-14-fabric-connection-applied.png` | Captured | Sanitized Foundry details show the applied `fabric-sales-native` Fabric Data Agent connection |
 
 #### 19.2 Create the Foundry Microsoft Fabric connection
 
@@ -3186,6 +3193,10 @@ Reference-lab Fabric/connection evidence audit as of 2026-07-23:
   `FABRIC_PROJECT_CONNECTION_ID`; never commit it to a public configuration.
 5. Capture `workloads/foundry/images/l3-14-fabric-connection-applied.png`, showing
   connection type and healthy state while redacting subscription and object IDs.
+
+**Applied Foundry Microsoft Fabric connection, with identifier fields excluded:**
+
+![Layer 3 — applied fabric-sales-native connection](workloads/foundry/images/l3-14-fabric-connection-applied.png)
 
 **STOP:** the applied-state connection screenshot and an authorized-user test in
 Fabric are mandatory before deployment.
