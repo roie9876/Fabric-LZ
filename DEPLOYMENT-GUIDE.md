@@ -3181,21 +3181,21 @@ be interpreted as Foundry-managed thread storage.
 
 ```mermaid
 sequenceDiagram
-   participant Caller as Private caller
-   participant APIM as APIM AI Gateway
-   participant ACA as External agent on Container Apps
-   participant Model as Foundry model deployment
-   participant AppI as Application Insights
+participant Caller as Private caller
+participant APIM as APIM AI Gateway
+participant ACA as External agent on Container Apps
+participant Model as Foundry model deployment
+participant AppI as Application Insights
 
-   Caller->>APIM: POST /agents/external/v1/responses + Entra token
-   APIM->>APIM: Validate tenant and API audience
-   APIM->>ACA: Route privately; remove caller Authorization header
-   ACA->>Model: Invoke with agent managed identity
-   Model-->>ACA: Response and token usage
-   ACA-->>APIM: output_text
-   APIM-->>Caller: HTTP 200 response
-   ACA-->>AppI: Agent/model OpenTelemetry spans and token attributes
-   APIM-->>AppI: Gateway request, latency, and failure telemetry
+Caller->>APIM: POST /agents/external/v1/responses + Entra token
+APIM->>APIM: Validate tenant and API audience
+APIM->>ACA: Route privately and remove caller Authorization header
+ACA->>Model: Invoke with agent managed identity
+Model-->>ACA: Response and token usage
+ACA-->>APIM: output_text
+APIM-->>Caller: HTTP 200 response
+ACA-->>AppI: Agent/model OpenTelemetry spans and token attributes
+APIM-->>AppI: Gateway request, latency, and failure telemetry
 ```
 
 ##### How the external agent is deployed
