@@ -2982,6 +2982,45 @@ private DNS/TCP tests must pass, and Terraform must return `0` before Step 18.
 > **Mode: 🟦 TERRAFORM (RUNNER)** — isolated state key
 > `35-ai-gateway.tfstate`.
 
+#### Why the AI Gateway exists
+
+Foundry can host and run an agent without APIM. APIM is required when that agent
+must be exposed as a governed enterprise API rather than consumed directly from
+its service-specific Foundry endpoint. It provides one stable private boundary
+between callers and multiple AI backends while allowing each backend to retain
+its own identity model.
+
+In this architecture, the AI Gateway provides:
+
+- **Private ingress** — callers use the APIM Gateway private endpoint and central
+  `privatelink.azure-api.net` DNS instead of reaching Foundry or agent backends
+  directly.
+- **A stable API contract** — callers integrate with a controlled Responses API
+  surface while agent versions, deployment endpoints, and backend hosting can
+  change independently.
+- **Central authentication and authorization** — APIM validates Microsoft Entra
+  tokens before routing. The Fabric IQ route preserves the delegated caller token
+  for Fabric On-Behalf-Of authorization; the external-agent route removes that
+  token and uses the backend's managed identity boundary.
+- **Policy enforcement** — rate limits, token budgets, content-safety checks,
+  semantic caching, and request/response shaping belong at this shared boundary
+  when they are approved and implemented in policy-as-code.
+- **Routing and isolation** — one gateway can route to the Fabric IQ prompt agent,
+  external Agent Framework services, model endpoints, and private tools without
+  publishing those backends individually.
+- **Observability and cost attribution** — gateway diagnostics, latency, failures,
+  caller/API dimensions, and token-policy outcomes flow to the central monitoring
+  platform.
+
+The diagram distinguishes the deployed APIM infrastructure from the pending API
+and policy layer. Standard v2, its system identity, private endpoint, outbound
+VNet integration, forced-egress route, private DNS, diagnostics, and Application
+Insights logger are deployed. The Fabric IQ/external-agent API definitions and
+advanced AI policies remain pending until their backend publication gates are
+complete.
+
+![Layer 3 — APIM as the governed private AI publication boundary](docs/images/06-foundry-private-agent.png)
+
 #### 18.1 What the AI Gateway root does
 
 The `platform/35-ai-gateway` root reads the Foundry VNet/private-endpoint
