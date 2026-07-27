@@ -68,8 +68,11 @@ APIM route and the advanced AI gateway policy set.
   - [16. Validate Layer 3 prerequisites](#16-validate-layer-3-prerequisites)
   - [17. Deploy private Foundry foundation](#17-deploy-private-foundry-foundation)
   - [18. Deploy private APIM AI Gateway](#18-deploy-private-apim-ai-gateway)
-  - [19. Deploy the Fabric IQ and external agents](#19-deploy-the-fabric-iq-and-external-agents)
-  - [20. Run final Layer 3 validation](#20-run-final-layer-3-validation)
+  - [19. Understand the two agent architectures](#19-understand-the-two-agent-architectures)
+  - [20. Deploy the Fabric IQ agent](#20-deploy-the-fabric-iq-agent)
+  - [21. Deploy the external Foundry agent](#21-deploy-the-external-foundry-agent)
+  - [22. Run final Layer 3 validation](#22-run-final-layer-3-validation)
+  - [23. Applied Foundry IQ + Fabric IQ integration](#23-applied-foundry-iq--fabric-iq-integration)
 - [Evidence acceptance criteria](#evidence-acceptance-criteria)
 - [Rollback order](#rollback-order)
 - [Troubleshooting matrix](#troubleshooting-matrix)
@@ -2899,7 +2902,7 @@ access control is set to role-based access only. `networkRuleSet.bypass = None`
 prevents a trusted-service bypass, and `disableLocalAuth = true` removes admin
 and query-key authentication. Together, the images prove the intended access
 model is private endpoint plus Entra RBAC. The role assignment and runtime query
-proof are still required in the placeholder below and Step 20; these two images
+proof are still required in the placeholder below and Step 22; these two images
 prove configuration only.
 
 ![Layer 3 — Search public access disabled](workloads/foundry/images/l3-05c-search-network-isolation.png)
@@ -3139,10 +3142,11 @@ route is approved.
 > controls in IaC before claiming them as applied. The authorized `200` and
 > unauthenticated `401` runtime tests prove enforcement beyond the policy view.
 
-### 19. Deploy the Fabric IQ and external agents
+### 19. Understand the two agent architectures
 
-> **Mode: 🟨 MANUAL (PORTAL) + 🟦 AZD/TERRAFORM (PRIVATE CLIENT)** —
-> Fabric artifacts require an applied-state evidence gate before agent deployment.
+> **Purpose: EDUCATION / DESIGN DECISION** — choose the correct identity,
+> hosting, gateway, state, and monitoring model before following either
+> deployment section.
 
 This release contains two distinct agent types:
 
@@ -3155,7 +3159,7 @@ This release contains two distinct agent types:
   `mcp-subnet`, uses managed identity for Foundry and telemetry, and is reachable
   only through private APIM at `/agents/external/v1/responses`.
 
-#### External-agent education: registration, runtime, gateway, and monitoring
+#### 19.1 External-agent registration, runtime, gateway, and monitoring
 
 An **external agent in Microsoft Foundry** is an agent whose runtime is hosted
 outside the Foundry managed agent service but whose identity is registered in a
@@ -3318,7 +3322,18 @@ Do not capture prompts, responses, bearer tokens, connection strings, trace IDs,
 tenant IDs, subscription IDs, object IDs, or client IPs in screenshot evidence.
 Refresh each portal page and capture the final applied state only.
 
-#### 19.1 Create and publish the Fabric semantic and ontology experience
+### 20. Deploy the Fabric IQ agent
+
+> **Mode: 🟨 MANUAL (FABRIC + FOUNDRY PORTALS)** — Fabric artifacts and the
+> native Foundry connection require an applied-state evidence gate before the
+> prompt agent is accepted.
+
+The Fabric IQ path is a Foundry-managed prompt agent that delegates governed
+data questions to a published Fabric Data Agent with the signed-in user's OBO
+identity. It does not share the external agent's Container Apps image, runtime
+identity, registration lifecycle, or APIM backend behavior.
+
+#### 20.1 Create and publish the Fabric semantic and ontology experience
 
 > **Current reference state (2026-07-22):** Workspace B contains semantic model
 > `sm_salesorders_public` and published Fabric Data Agent
@@ -3327,9 +3342,9 @@ Refresh each portal page and capture the final applied state only.
 
 The tenant and capacity prerequisites were applied and refreshed on 2026-07-22.
 These screenshots prove the persisted control-plane state. The semantic-model
-Data Agent and its Foundry invocation are working, but the Fabric-side published
-agent, Fabric-side semantic answer, native Foundry connection, and optional
-ontology screenshots remain to be captured.
+Data Agent, direct Fabric semantic answer, native Foundry connection, and
+Foundry invocation are captured and working. Ontology evidence remains
+conditional because ontology is not in the current deployment scope.
 
 **Ontology item creation enabled tenant-wide:**
 
@@ -3413,7 +3428,7 @@ Reference-lab Fabric/connection evidence audit as of 2026-07-26:
 | `24-data-agent-ontology-answer.png` | Blocked, conditional | Requires the optional ontology path |
 | `l3-14-fabric-connection-applied.png` | Captured | Sanitized Foundry details show the applied `fabric-sales-native` Fabric Data Agent connection |
 
-#### 19.2 Create the Foundry Microsoft Fabric connection
+#### 20.2 Create the Foundry Microsoft Fabric connection
 
 1. Copy the published Data Agent `workspace_id` and `artifact_id` from its URL.
 2. In the existing Foundry project, open **Management center** > **Connected
@@ -3431,7 +3446,7 @@ Reference-lab Fabric/connection evidence audit as of 2026-07-26:
 **STOP:** the applied-state connection screenshot and an authorized-user test in
 Fabric are mandatory before deployment.
 
-#### 19.3 Create the Foundry Fabric IQ prompt agent
+#### 20.3 Create the Foundry Fabric IQ prompt agent
 
 Create a normal Foundry prompt agent named `fabric-iq-prompt-agent` with model
 `gpt-4.1-mini`. The portal marks the Fabric tool unsupported with
@@ -3493,7 +3508,16 @@ definition, root-cause notes, and verification procedure are recorded in
 
 ![Fabric-grounded sales total](workloads/foundry/images/l3-11a-fabric-grounded-response.png)
 
-#### 19.4 Build and deploy the external agent
+### 21. Deploy the external Foundry agent
+
+> **Mode: 🟦 TERRAFORM / PRIVATE CLIENT + 🟨 FOUNDRY REGISTRATION** — build and
+> deploy the private runtime first, then register its telemetry identity in
+> Foundry as a separate operation.
+
+This section deploys the external runtime described in Section 19.1. Container
+Apps hosts the service, Foundry stores its external-agent registration, APIM is
+the private invocation boundary, and Application Insights correlates its
+OpenTelemetry spans.
 
 The image build and Terraform deployment use different authorization paths.
 `az acr build` requires the runner identity to reach the private ACR data plane
@@ -3629,7 +3653,7 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 > stateful agents; do not fabricate runtime persistence evidence for this
 > stateless service. If persistence is later enabled, restore this evidence gate.
 
-### 20. Run final Layer 3 validation
+### 22. Run final Layer 3 validation
 
 | Area | Pass condition |
 |---|---|
@@ -3661,7 +3685,7 @@ showing model readiness, Storage/Cosmos/ACR public-access controls, private DNS
 links, and firewall diagnostics. Configuration screenshots must be paired with
 the runtime tests above before Layer 3 is declared complete.
 
-### 21. Applied Foundry IQ + Fabric IQ integration
+### 23. Applied Foundry IQ + Fabric IQ integration
 
 The retained technical view below describes the applied integration boundary.
 A Foundry prompt agent invokes a published Fabric data agent
@@ -3699,10 +3723,11 @@ The embedded screenshots are reference examples from the reference lab. Customer
 evidence must be captured in the customer environment. In the reference lab,
 Layers 1–2 have been executed and their screenshots captured (Layer 1 01-14,
 OPDG opdg-01..11, Phase 6 12-15 + walkthrough, Phase 7 16-18 + walkthrough,
-Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 Foundry foundation and
-Fabric IQ prompt-agent evidence is captured above; external-agent and APIM
-publication evidence remains incomplete. A customer run must re-capture all released-layer
-evidence in the customer tenant.
+Phase 9 lockdown 19, and end-to-end proof 20). Layer 3 Foundry foundation,
+Fabric IQ prompt-agent, external-agent, and external APIM route evidence is
+captured above. The Fabric IQ APIM route and advanced AI gateway policy evidence
+remain pending. A customer run must re-capture all released-layer evidence in
+the customer tenant.
 
 ## Rollback order
 
