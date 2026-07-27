@@ -2774,6 +2774,9 @@ is `Captured` and its associated runtime test passes.
 | 21a | `l3-07d-foundry-traces-working.png` | Native Foundry trace visible after hybrid App Insights access was applied | Captured |
 | 22 | `l3-08a-apim-private-network.png` | Standard v2, public disabled, PE, VNet integration | Pending capture |
 | 23 | `l3-08b-apim-managed-identity.png` | APIM system identity and monitoring RBAC | Pending capture |
+| 23a | `l3-08c-foundry-ai-gateway-inventory.png` | Foundry Admin recognizes the APIM instance as an AI Gateway in Sweden Central | Captured |
+| 23b | `l3-08d-foundry-ai-gateway-project.png` | StandardV2 gateway configuration and Foundry project status Enabled | Captured |
+| 23c | `l3-08e-foundry-ai-gateway-token-management.png` | Both model deployments appear in token management; no limits are currently configured | Captured |
 | 24 | `l3-09a-apim-agent-apis.png` | Fabric IQ prompt-agent and external-agent API inventory | Blocked |
 | 25 | `l3-09b-apim-agent-policies.png` | Entra validation, backend routing, diagnostics, and approved advanced policies | Blocked |
 | 26 | `l3-10a-fabric-prompt-agent-active.png` | Prompt agent version 6, `gpt-4.1-mini`, Fabric tool, Active | Captured |
@@ -3020,6 +3023,28 @@ advanced AI policies remain pending until their backend publication gates are
 complete.
 
 ![Layer 3 — APIM as the governed private AI publication boundary](docs/images/06-foundry-private-agent.png)
+
+The Foundry Admin experience confirms that the Terraform-deployed APIM instance
+is registered as an AI Gateway, associated with the target project, and exposed
+to the gateway token-management control plane.
+
+**Foundry AI Gateway inventory:**
+
+![Layer 3 — Foundry AI Gateway inventory](workloads/foundry/images/l3-08c-foundry-ai-gateway-inventory.png)
+
+**StandardV2 gateway configuration and enabled project association:**
+
+![Layer 3 — Foundry project enabled on the AI Gateway](workloads/foundry/images/l3-08d-foundry-ai-gateway-project.png)
+
+**Token-management inventory for both model deployments:**
+
+![Layer 3 — Foundry AI Gateway token management](workloads/foundry/images/l3-08e-foundry-ai-gateway-token-management.png)
+
+The token-management screenshot shows `No limit set` for both deployments. This
+proves that Foundry recognizes the models through the gateway and exposes the
+limit-management surface; it does **not** prove token governance is enforced.
+Token limits remain a pending policy decision and must be configured and tested
+before claiming that control as applied.
 
 #### 18.1 What the AI Gateway root does
 
