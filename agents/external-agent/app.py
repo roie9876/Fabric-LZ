@@ -8,11 +8,13 @@ from azure.identity.aio import DefaultAzureCredential
 from azure.identity import DefaultAzureCredential as MonitorCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
 from fastapi import FastAPI, HTTPException
+from opentelemetry import trace
 from pydantic import BaseModel, Field
 
 
 LOGGER_NAME = "external_agent"
 logger = logging.getLogger(LOGGER_NAME)
+tracer = trace.get_tracer(__name__)
 
 
 class ResponseRequest(BaseModel):
@@ -40,6 +42,18 @@ def required_setting(name: str) -> str:
     if not value:
         raise RuntimeError(f"Required environment variable {name} is not set.")
     return value
+
+
+def set_token_usage(span, usage_details: dict[str, int] | None) -> None:
+    if not usage_details:
+        return
+
+    input_tokens = usage_details.get("input_token_count")
+    output_tokens = usage_details.get("output_token_count")
+    if input_tokens is not None:
+        span.set_attribute("gen_ai.usage.input_tokens", input_tokens)
+    if output_tokens is not None:
+        span.set_attribute("gen_ai.usage.output_tokens", output_tokens)
 
 
 @asynccontextmanager
@@ -87,7 +101,15 @@ async def healthz() -> dict[str, str]:
 @app.post("/v1/responses", response_model=ResponseBody)
 async def create_response(request: ResponseRequest) -> ResponseBody:
     try:
-        result = await app.state.agent.run(request.input)
+        with tracer.start_as_current_span("invoke_agent external-agent") as span:
+            span.set_attribute("gen_ai.operation.name", "invoke_agent")
+            span.set_attribute("gen_ai.agent.name", "external-agent")
+            span.set_attribute(
+                "gen_ai.agent.id",
+                os.getenv("OTEL_AGENT_ID", "external-agent-v1"),
+            )
+            result = await app.state.agent.run(request.input)
+            set_token_usage(span, result.usage_details)
     except Exception as exc:
         logger.exception("Agent invocation failed")
         raise HTTPException(status_code=502, detail="Agent invocation failed") from exc

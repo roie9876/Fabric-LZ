@@ -28,7 +28,7 @@ The repository targets three cumulative layers:
 |---|---|---|
 | **1 — Platform** | Governance, private state, hub/firewall, DNS Resolver, private Azure Monitor/AMPLS | **Core implemented and reference-deployed; Stages 30/50 remain stubs** |
 | **2 — Fabric** | Private Workspace A, public Workspace B, OPDG ingestion, semantic model/report | **Implemented and reference-deployed** |
-| **3 — Foundry** | Private Foundry project, Fabric IQ prompt agent, external Agent Framework service, hybrid Application Insights access with AMPLS, APIM publication | **Fabric IQ prompt agent and native tracing deployed and verified; external Container Apps agent and APIM publication pending** |
+| **3 — Foundry** | Private Foundry project, Fabric IQ prompt agent, external Agent Framework service, hybrid Application Insights access with AMPLS, APIM publication | **Fabric IQ prompt agent, external Container Apps agent, native tracing, and external-agent APIM route deployed and verified; Fabric IQ APIM route pending** |
 
 The shared network target is shown below. Layer 2 then adds a private Workspace
 A that ingests on-premises SQL into OneLake and a public Workspace B that serves
@@ -36,8 +36,9 @@ the semantic model/report through an approved data gateway path.
 
 Layer 3 extends the Foundry spoke shown in the landing-zone diagram. Its section
 provides executable Terraform for the private Foundry foundation and APIM. The
-Fabric IQ prompt agent is deployed and verified. The remaining release boundary
-is the external Container Apps agent and both APIM APIs/policies.
+Fabric IQ prompt agent, external Container Apps agent, and external-agent APIM
+route are deployed and verified. The remaining release boundary is the Fabric IQ
+APIM route and the advanced AI gateway policy set.
 
 ## Contents
 
@@ -88,9 +89,10 @@ This repository currently provides:
   and DNS zone group.
 - Optional **lab-only** SQL Server and OPDG Windows VMs in an existing simulated
   on-premises VNet.
-- Layer 3 private Foundry foundation, verified Fabric IQ prompt agent, and APIM
-  infrastructure. The external Container Apps agent and both APIM APIs/policies
-  remain behind their deployment acceptance gate.
+- Layer 3 private Foundry foundation, verified Fabric IQ prompt agent, external
+  Container Apps agent, and APIM infrastructure. The external-agent API is
+  published and verified; the Fabric IQ APIM route and advanced policies remain
+  behind their deployment acceptance gates.
 
 This repository does **not** deploy the following customer production
 dependencies. Their owners must complete and sign them off before the matching
@@ -2777,15 +2779,18 @@ is `Captured` and its associated runtime test passes.
 | 23a | `l3-08c-foundry-ai-gateway-inventory.png` | Foundry Admin recognizes the APIM instance as an AI Gateway in Sweden Central | Captured |
 | 23b | `l3-08d-foundry-ai-gateway-project.png` | StandardV2 gateway configuration and Foundry project status Enabled | Captured |
 | 23c | `l3-08e-foundry-ai-gateway-token-management.png` | Both model deployments appear in token management; no limits are currently configured | Captured |
-| 24 | `l3-09a-apim-agent-apis.png` | Fabric IQ prompt-agent and external-agent API inventory | Blocked |
-| 25 | `l3-09b-apim-agent-policies.png` | Entra validation, backend routing, diagnostics, and approved advanced policies | Blocked |
+| 24 | `l3-09a-apim-agent-apis.png` | External Agent API revision 1 and `POST Create response` operation; Fabric IQ API remains pending | Captured, partial |
+| 25 | `l3-09b-apim-agent-policies.png` | External-agent Entra validation, backend routing, and caller-header handling; advanced policies remain pending | Captured, partial |
 | 26 | `l3-10a-fabric-prompt-agent-active.png` | Prompt agent version 6, `gpt-4.1-mini`, Fabric tool, Active | Captured |
 | 27 | `l3-10b-fabric-prompt-agent-tool.png` | Persisted `fabric_dataagent_preview` configuration using `fabric-sales-native` | Pending capture |
+| 27a | `l3-10c-external-agent-linked.png` | Foundry inventory shows `external-agent` version 1, Running, type external | Captured |
+| 27b | `l3-10e-external-agent-monitor-pending.png` | Foundry Monitor shows continuous evaluation metrics and alerts are not configured | Captured limitation |
 | 28 | `l3-11a-fabric-grounded-response.png` | Fabric-grounded `14,476.47` response matching direct DAX | Captured |
 | 29 | `l3-11b-agent-byo-state.png` | Storage/Search/Cosmos runtime artifacts | N/A: external agent uses `store: false` |
-| 30 | `l3-12a-private-dns-validation.png` | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor/Container Apps private DNS | Blocked |
+| 30 | `l3-12a-private-dns-validation.png` | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor/Container Apps private DNS | Runtime passed; pending capture |
 | 31 | `l3-12b-firewall-runtime-rules.png` | Runtime, identity, MCR, evaluation, monitoring, and APIM flows | Blocked |
-| 32 | `l3-12c-private-telemetry.png` | Correlated external-agent/APIM telemetry in private App Insights | Blocked |
+| 32 | `l3-12c-private-telemetry.png` | Application Insights Agents view shows `external-agent`, zero errors, and token telemetry | Captured |
+| 32a | `l3-12c2-external-agent-token-dashboard.png` | Application Insights shows 724 total tokens split into 159 input and 565 output tokens | Captured |
 | 33 | `l3-12d-terraform-no-drift.png` | All applicable Layer 3 roots return detailed exit code `0` | Pending capture |
 | 34 | `l3-13a-model-deployments.png` | `gpt-5-mini` and Fabric-compatible `gpt-4.1-mini` versions, SKUs, capacity, Succeeded | Pending capture |
 | 35 | `l3-13b-storage-network-isolation.png` | Storage public access disabled and local keys disabled | Pending capture |
@@ -2795,12 +2800,12 @@ is `Captured` and its associated runtime test passes.
 | 39 | `l3-13f-central-private-dns.png` | Foundry/Search/Cosmos/ACR/APIM zones linked to hub and spoke | Pending capture |
 | 40 | `l3-13g-firewall-diagnostics.png` | Firewall allow/deny diagnostics flowing to central LAW | Pending capture |
 
-**Audit summary:** 19 Layer 3 items are captured, 15 deployed/control-plane
-items still need accepted screenshots, 5 final runtime items are blocked by the
-pending external-agent/APIM deployment, and 1 persistence item is not applicable
-to the stateless external agent. Capture Foundry data-plane screens only from an
-approved private-network client; do not enable public access to fill an evidence
-gap. Azure portal captures also require an authenticated portal session.
+**Audit summary:** Foundry, Fabric Data Agent, native tracing, and Foundry-side AI
+Gateway evidence are captured. The external-agent runtime and APIM route now pass
+private DNS, health, authentication, invocation, telemetry, and Terraform
+convergence checks; their final portal screenshots remain pending. Fabric IQ APIM
+publication and advanced gateway policies remain blocked by their own acceptance
+gates. One persistence item is not applicable to the stateless external agent.
 
 **Foundry subnet inventory and delegation** — the Agent and MCP/tools subnets
 are delegated to `Microsoft.App/environments`, while the PE subnet remains
@@ -3122,19 +3127,17 @@ route is approved.
 > Application Insights. This proves keyless logger authorization. Backend model
 > or agent roles are added and evidenced only when those APIs are published.
 
-> **Screenshot placeholder — `l3-09a-apim-agent-apis.png`**: after the external
-> Container Apps agent is deployed, capture the Fabric IQ prompt-agent and
-> external-agent API definitions and their private backend targets. Inventory
-> proves publication, while invocation proves backend connectivity and
-> authentication.
+> **Applied evidence — `l3-09a-apim-agent-apis.png`**: APIM shows External Agent
+> API revision 1 with the `POST Create response` operation. This proves the
+> external runtime is published at the gateway. The Fabric IQ API remains
+> pending because its backend URL has not been supplied.
 
-> **Screenshot placeholder — `l3-09b-apim-agent-policies.png`**: capture the
-> applied Entra token validation, backend routing, Authorization-header handling,
-> and Application Insights diagnostics for both APIs. The current Terraform does
-> **not** deploy token limits, content-safety, rate-limit, or semantic-cache
-> policies; add and test those controls in IaC before claiming them as applied.
-> Include positive and negative policy tests because policy XML alone does not
-> prove enforcement.
+> **Applied evidence — `l3-09b-apim-agent-policies.png`**: the external-agent
+> inbound pipeline contains `validate-azure-ad-token`, `set-backend-service`, and
+> `set-header`. The current Terraform does **not** deploy token limits,
+> content-safety, rate-limit, or semantic-cache policies; add and test those
+> controls in IaC before claiming them as applied. The authorized `200` and
+> unauthenticated `401` runtime tests prove enforcement beyond the policy view.
 
 ### 19. Deploy the Fabric IQ and external agents
 
@@ -3151,6 +3154,169 @@ This release contains two distinct agent types:
   Azure Container Apps environment on
   `mcp-subnet`, uses managed identity for Foundry and telemetry, and is reachable
   only through private APIM at `/agents/external/v1/responses`.
+
+#### External-agent education: registration, runtime, gateway, and monitoring
+
+An **external agent in Microsoft Foundry** is an agent whose runtime is hosted
+outside the Foundry managed agent service but whose identity is registered in a
+Foundry project. The registration makes the agent discoverable under **Build >
+Agents** and gives Foundry a stable OpenTelemetry correlation value. It does not
+copy the code into Foundry, create compute, publish an endpoint, or proxy calls.
+
+That distinction creates two independent lifecycles:
+
+| Lifecycle | Owner in this reference deployment | What changes it |
+|---|---|---|
+| Runtime | Internal Azure Container Apps environment | Build a new ACR image and apply `workloads/agents` |
+| Foundry catalog entry | Foundry project | Run `register_foundry.py` with the external-agent name and telemetry ID |
+| Enterprise API | Private APIM AI Gateway | Apply the APIM backend, API, operation, policy, and diagnostic resources |
+| Observability | Application Insights and central Log Analytics | Emit correlated OpenTelemetry spans and retain platform diagnostics |
+
+The deployed runtime is a FastAPI service built with Microsoft Agent Framework.
+At startup it uses its user-assigned managed identity to create a
+`FoundryChatClient`. Each `POST /v1/responses` request invokes the configured
+Foundry model, returns a small Responses-style body, and creates an agent span.
+The service is stateless (`store: false`), so the external registration must not
+be interpreted as Foundry-managed thread storage.
+
+```mermaid
+sequenceDiagram
+   participant Caller as Private caller
+   participant APIM as APIM AI Gateway
+   participant ACA as External agent on Container Apps
+   participant Model as Foundry model deployment
+   participant AppI as Application Insights
+
+   Caller->>APIM: POST /agents/external/v1/responses + Entra token
+   APIM->>APIM: Validate tenant and API audience
+   APIM->>ACA: Route privately; remove caller Authorization header
+   ACA->>Model: Invoke with agent managed identity
+   Model-->>ACA: Response and token usage
+   ACA-->>APIM: output_text
+   APIM-->>Caller: HTTP 200 response
+   ACA-->>AppI: Agent/model OpenTelemetry spans and token attributes
+   APIM-->>AppI: Gateway request, latency, and failure telemetry
+```
+
+##### How the external agent is deployed
+
+1. Build the image from `agents/external-agent` and push an immutable tag to the
+  private ACR. Grant build/push access only for the build window.
+2. Apply `workloads/agents`. Terraform creates the internal Container Apps
+  environment, private DNS, user-assigned identity, runtime RBAC, Container App,
+  probes, diagnostics, and APIM publication resources.
+3. Verify the direct private health endpoint, then verify that APIM returns `401`
+  without a token and `200` with a token for the configured audience.
+4. Run `register_foundry.py` from a private client. The script registers kind
+  `external` with `otel_agent_id=external-agent-v1`; it does not redeploy the
+  Container App.
+5. Invoke the agent again after registration and confirm that the new span uses
+  the same `gen_ai.agent.id`. Only then does the Foundry entry and runtime
+  telemetry form one observable agent.
+
+The applied Foundry inventory shows the externally hosted agent beside the
+Foundry-hosted prompt agent:
+
+![Layer 3 — Foundry external-agent registration](workloads/foundry/images/l3-10c-external-agent-linked.png)
+
+##### How the AI Gateway participates
+
+APIM is the invocation boundary, not the agent runtime. The caller requests an
+Entra token for the external-agent API audience and sends it to the private APIM
+endpoint. APIM validates tenant and audience, selects the private Container Apps
+backend, and deletes the caller's `Authorization` header before forwarding. The
+Container App then uses its own managed identity to call Foundry. Caller identity
+therefore cannot be accidentally reused as the model identity.
+
+This split permits one controlled API contract while the image, Container Apps
+revision, Foundry model deployment, or external registration version changes.
+It also gives the platform team a single place for approved throttling, token
+budgets, content safety, caching, and request shaping. In the current applied
+state, Entra validation, private routing, header removal, and diagnostics are
+enabled. Advanced token-limit, safety, rate-limit, and semantic-cache policies
+remain pending and must not be presented as enforced.
+
+![Layer 3 — external-agent API published by APIM](workloads/foundry/images/l3-09a-apim-agent-apis.png)
+
+![Layer 3 — external-agent APIM authentication and routing policy](workloads/foundry/images/l3-09b-apim-agent-policies.png)
+
+##### How to monitor the agent
+
+Use the telemetry layer that owns the question being investigated:
+
+| Question | Primary telemetry | Correlation or signal |
+|---|---|---|
+| Is the API reachable and authorized? | APIM/Application Insights requests | API name, operation, HTTP status, duration |
+| Is the container healthy? | Container Apps system and console logs | Revision, replica, probe status, exceptions |
+| Did the external agent run? | Application Insights dependencies/spans | `gen_ai.agent.id=external-agent-v1` |
+| Which operation ran? | Agent span attributes | `gen_ai.operation.name=invoke_agent` and `gen_ai.agent.name=external-agent` |
+| How many model tokens were used? | Agent span attributes | `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` |
+| Is the infrastructure converged? | Terraform and Azure resource state | Detailed exit code `0`, ready revision, no temporary roles |
+
+The external service configures Azure Monitor OpenTelemetry with managed
+identity. Its invocation span carries the Foundry registration ID and copies
+Agent Framework `usage_details` into the GenAI semantic-convention token
+attributes. APIM separately emits gateway telemetry with W3C correlation. A
+gateway request proves ingress and policy execution; an agent span proves the
+runtime/model path. Keep both views when diagnosing latency or failures.
+
+For a first trace check, use a 24-hour time range and filter to the external
+agent before drilling into one operation. In the workspace-based Application
+Insights schema used here, this query shows the latest registered-agent spans
+without exposing prompts or model responses:
+
+```kusto
+AppDependencies
+| where TimeGenerated > ago(24h)
+| extend AgentId = tostring(Properties["gen_ai.agent.id"])
+| where AgentId == "external-agent-v1"
+| extend Operation = tostring(Properties["gen_ai.operation.name"]),
+      InputTokens = toint(Properties["gen_ai.usage.input_tokens"]),
+      OutputTokens = toint(Properties["gen_ai.usage.output_tokens"])
+| project TimeGenerated, Name, Success, DurationMs, Operation,
+       InputTokens, OutputTokens, OperationId
+| order by TimeGenerated desc
+```
+
+The current image began exporting token attributes in `1.0.3`; older spans are
+not backfilled and can legitimately show empty token values. Portal dashboards
+can also lag raw trace ingestion, so confirm the newest timestamp and query the
+underlying telemetry before treating a dashboard zero as a runtime failure.
+
+The applied Application Insights **Agents (Preview)** view was opened in Edge
+inside the private data-gateway VM. It shows `external-agent` with zero errors
+and `724` aggregated tokens for the selected 24-hour window. The same blade does
+not return these metrics from an unapproved network path. That dashboard total
+spans multiple invocations; the separate metadata-only query verified one
+post-deployment span with `79` input and `140` output tokens.
+
+![Layer 3 — external-agent trace and token telemetry](workloads/foundry/images/l3-12c-private-telemetry.png)
+
+The token dashboard breaks that 24-hour aggregate into `159` input and `565`
+output tokens. The chart is an aggregate operational view, not a replacement for
+per-invocation trace attributes.
+
+![Layer 3 — external-agent input and output token dashboard](workloads/foundry/images/l3-12c2-external-agent-token-dashboard.png)
+
+Foundry's external-agent **Monitor** tab is available, but continuous evaluation
+metrics and alerts are not configured in the current reference deployment. Its
+empty error-rate and operational-metric cards are recorded as a limitation, not
+as proof of a zero error rate. Configure an evaluation and alerting policy before
+using this view for service-level monitoring.
+
+![Layer 3 — external-agent continuous monitoring not configured](workloads/foundry/images/l3-10e-external-agent-monitor-pending.png)
+
+An operator should be able to follow one invocation across these boundaries:
+
+1. APIM request accepted or rejected by Entra policy.
+2. Private backend call reaches the active Container Apps revision.
+3. Agent span reports `external-agent-v1` and `invoke_agent`.
+4. Child model telemetry reports latency and success.
+5. The agent span reports input/output token usage for the same operation.
+
+Do not capture prompts, responses, bearer tokens, connection strings, trace IDs,
+tenant IDs, subscription IDs, object IDs, or client IPs in screenshot evidence.
+Refresh each portal page and capture the final applied state only.
 
 #### 19.1 Create and publish the Fabric semantic and ontology experience
 
@@ -3353,12 +3519,17 @@ AzureRM environment credential chain instead of forcing `use_cli=true`; then
 validate backend and provider authentication before building the image.
 
 Build from the private runner so ACR remains private, then deploy the isolated
-agents Terraform root:
+agents Terraform root. The reference runner has Docker but no Azure CLI, so the
+applied build used a short-lived `Container Registry Repository Writer` role,
+managed-identity ACR OAuth exchange, `docker build`, and `docker push`; the role
+was removed immediately after each push.
 
 ```bash
 cd /home/azureuser/lz
-az acr build --registry acr2690 \
-  --image external-agent:1.0.0 agents/external-agent
+docker build --pull \
+  --tag acr2690.azurecr.io/external-agent:1.0.3 \
+  agents/external-agent
+docker push acr2690.azurecr.io/external-agent:1.0.3
 
 cd workloads/agents
 terraform init -reconfigure -backend-config=../../_private/backend.hcl
@@ -3370,14 +3541,71 @@ terraform plan -detailed-exitcode -var-file=../../_private/agents.private.tfvars
 ```
 
 The private tfvars file supplies the immutable external-agent image reference,
-APIM Entra API audience, and Foundry prompt-agent backend URL. The apply creates the internal
-Container Apps environment, external agent, RBAC, diagnostics, and both APIM APIs.
+APIM Entra API audience, and Foundry prompt-agent backend URL. The apply creates
+the internal Container Apps environment, external agent, RBAC, diagnostics, and
+external-agent APIM API. The Fabric IQ API is conditional and remains absent
+while `fabric_agent_backend_url` is empty.
 
-> **Evidence status:** `fabric-iq-prompt-agent` version `6` is active and its
-> Fabric-grounded total matches direct DAX (`14,476.47` across 10 orders). The
-> external Container Apps agent remains pending because its Sweden Central
-> environment failed to provision. APIM routes and telemetry screenshots remain
-> acceptance requirements.
+The Container Apps deployment and the Foundry external-agent registration are
+separate operations. Container Apps remains the runtime and APIM remains the
+invocation boundary. Foundry stores registration metadata only, correlates
+Application Insights spans by `gen_ai.agent.id`, and displays the registration
+under **Build > Agents** for trace-scoped observability and evaluation.
+
+Run the registration from a private-network client with temporary project-scoped
+`Foundry User` authorization:
+
+```bash
+cd /home/azureuser/lz/agents/external-agent
+export FOUNDRY_PROJECT_ENDPOINT="https://<account>.services.ai.azure.com/api/projects/<project>"
+export EXTERNAL_AGENT_NAME="external-agent"
+export OTEL_AGENT_ID="external-agent-v1"
+python register_foundry.py
+```
+
+`register_foundry.py` uses `AIProjectClient(..., allow_preview=True)` and
+`ExternalAgentDefinition`. Registration doesn't move, duplicate, proxy, or
+restart the Container Apps runtime. Deleting the registration also leaves the
+runtime untouched.
+
+> **Applied reference state (2026-07-27):** Sweden Central initially returned
+> `ManagedEnvironmentCapacityHeavyUsageError`; a later approved retry succeeded.
+> Internal environment `azr-sbx-lab-0001-cae-agents` is Succeeded with private IP
+> `10.3.2.160`. Container App `azr-sbx-lab-0001-ca-ext-agent` runs image
+> `external-agent:1.0.3` with one ready revision and user-assigned identity.
+> Startup fixes added the async `aiohttp` transport and `AZURE_CLIENT_ID`.
+> Direct private health returned `200`; private APIM rejected an unauthenticated
+> request with `401` and returned `200` plus `external agent ok` for an authorized
+> request. Private Log Analytics query returned external-agent dependencies, and
+> the agents Terraform root returned detailed exit code `0`.
+
+> **Foundry registration:** `external-agent` is registered as kind `external`
+> with `otel_agent_id=external-agent-v1`. A post-registration APIM invocation
+> returned `200`, and private Log Analytics contained a matching
+> `gen_ai.agent.id=external-agent-v1` dependency span. Temporary project-scoped
+> `Foundry User` authorization used by the runner was removed after verification.
+
+> **Token telemetry:** image `1.0.3` copies Agent Framework
+> `usage_details.input_token_count` and `output_token_count` to
+> `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` on the registered
+> external-agent span. A post-deployment APIM invocation exported `79` input and
+> `140` output tokens. Earlier spans remain empty because telemetry is not
+> backfilled.
+
+For interactive tests from Windows PowerShell 5.1, set UTF-8 before printing
+non-English model output:
+
+```powershell
+chcp 65001 > $null
+[Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false)
+[Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+$OutputEncoding = [System.Text.UTF8Encoding]::new($false)
+```
+
+> **Applied evidence — `l3-10c-external-agent-linked.png`**: from Edge inside the
+> private data-gateway VM, Foundry **Build > Agents** shows `external-agent`
+> version 1 as Running with type external beside the prompt agent. The image does
+> not expose subscription, tenant, object, or trace IDs.
 
 > **Applied evidence — `l3-10a-fabric-prompt-agent-active.png`**: prompt agent
 > version 6 is Active with `gpt-4.1-mini`, Responses protocol, and the Fabric

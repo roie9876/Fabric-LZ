@@ -59,7 +59,7 @@ resource "azurerm_container_app_environment" "agents" {
     name                  = "Consumption"
     workload_profile_type = "Consumption"
     minimum_count         = 0
-    maximum_count         = 10
+    maximum_count         = 0
   }
 }
 
@@ -161,6 +161,11 @@ resource "azurerm_container_app" "external_agent" {
       }
 
       env {
+        name  = "AZURE_CLIENT_ID"
+        value = azurerm_user_assigned_identity.external_agent.client_id
+      }
+
+      env {
         name        = "APPLICATIONINSIGHTS_CONNECTION_STRING"
         secret_name = "applicationinsights-connection-string"
       }
@@ -168,6 +173,11 @@ resource "azurerm_container_app" "external_agent" {
       env {
         name  = "OTEL_SERVICE_NAME"
         value = "external-agent"
+      }
+
+      env {
+        name  = "OTEL_AGENT_ID"
+        value = "external-agent-v1"
       }
 
       liveness_probe {
@@ -222,10 +232,6 @@ resource "azurerm_monitor_diagnostic_setting" "container_app" {
   name                       = "diag-to-law"
   target_resource_id         = azurerm_container_app.external_agent.id
   log_analytics_workspace_id = data.azurerm_log_analytics_workspace.central.id
-
-  enabled_log {
-    category_group = "allLogs"
-  }
 
   enabled_metric {
     category = "AllMetrics"

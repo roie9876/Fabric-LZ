@@ -1,4 +1,5 @@
 agent-framework-foundry
+aiohttp
 azure-identity
 azure-monitor-opentelemetry
 fastapi

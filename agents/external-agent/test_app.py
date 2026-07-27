@@ -26,3 +26,40 @@ def test_required_setting_rejects_missing_value(monkeypatch):
         assert "SETTING" in str(exc)
     else:
         raise AssertionError("required_setting accepted a missing value")
+
+
+def test_external_agent_id_default(monkeypatch):
+    module = load_app_module()
+    monkeypatch.delenv("OTEL_AGENT_ID", raising=False)
+    assert module.os.getenv("OTEL_AGENT_ID", "external-agent-v1") == "external-agent-v1"
+
+
+def test_set_token_usage():
+    module = load_app_module()
+
+    class Span:
+        attributes = {}
+
+        def set_attribute(self, name, value):
+            self.attributes[name] = value
+
+    span = Span()
+    module.set_token_usage(
+        span,
+        {"input_token_count": 21, "output_token_count": 8},
+    )
+
+    assert span.attributes == {
+        "gen_ai.usage.input_tokens": 21,
+        "gen_ai.usage.output_tokens": 8,
+    }
+
+
+def test_set_token_usage_accepts_missing_usage():
+    module = load_app_module()
+
+    class Span:
+        def set_attribute(self, name, value):
+            raise AssertionError("No attributes should be set")
+
+    module.set_token_usage(Span(), None)
