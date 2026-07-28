@@ -82,6 +82,12 @@ variable "external_agent_image" {
   type        = string
 }
 
+variable "external_agent_capture_message_content" {
+  description = "Capture full agent prompts, responses, and system instructions in OpenTelemetry. Enable only with approved sensitive-data handling."
+  type        = bool
+  default     = false
+}
+
 variable "api_management_name" {
   type    = string
   default = "azr-sbx-lab-0001-apim-8833"

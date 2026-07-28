@@ -2788,6 +2788,7 @@ is `Captured` and its associated runtime test passes.
 | 27 | `l3-10b-fabric-prompt-agent-tool.png` | Persisted `fabric_dataagent_preview` configuration using `fabric-sales-native` | Pending capture |
 | 27a | `l3-10c-external-agent-linked.png` | Foundry inventory shows `external-agent` version 1, Running, type external | Captured |
 | 27b | `l3-10e-external-agent-monitor-pending.png` | Foundry Monitor shows continuous evaluation metrics and alerts are not configured | Captured limitation |
+| 27c | `l3-10f-external-agent-conversation-turns.png` | Foundry User view renders a synthetic user prompt and assistant response from image `1.0.4` | Captured |
 | 28 | `l3-11a-fabric-grounded-response.png` | Fabric-grounded `14,476.47` response matching direct DAX | Captured |
 | 29 | `l3-11b-agent-byo-state.png` | Storage/Search/Cosmos runtime artifacts | N/A: external agent uses `store: false` |
 | 30 | `l3-12a-private-dns-validation.png` | Foundry/Search/Storage/Cosmos/ACR/APIM/Monitor/Container Apps private DNS | Runtime passed; pending capture |
@@ -3282,10 +3283,27 @@ AppDependencies
 | order by TimeGenerated desc
 ```
 
-The current image began exporting token attributes in `1.0.3`; older spans are
-not backfilled and can legitimately show empty token values. Portal dashboards
-can also lag raw trace ingestion, so confirm the newest timestamp and query the
-underlying telemetry before treating a dashboard zero as a runtime failure.
+Image `1.0.3` began exporting token attributes. Image `1.0.4` also enables Agent
+Framework instrumentation with approved sensitive-data capture, which emits
+`gen_ai.input.messages`, `gen_ai.output.messages`, and system instructions for
+Foundry's trace **User view**. Older spans are not backfilled and can
+legitimately show empty token or message values. Portal dashboards can also lag
+raw trace ingestion, so confirm the newest timestamp before treating a missing
+value as a runtime failure.
+
+> **Sensitive telemetry warning:** the reference environment explicitly sets
+> `external_agent_capture_message_content = true`. Full user prompts, model
+> responses, and system instructions are therefore stored in Application
+> Insights/Log Analytics. The reusable Terraform default is `false`. Enable this
+> only with approved RBAC, retention, redaction, data residency, and incident
+> response controls. Never send credentials or regulated data in a test prompt.
+
+The post-deployment Foundry **User view** rendered the synthetic prompt
+`Reply with exactly: capture-ready-20260728` and assistant response
+`capture-ready-20260728`. This proves the framework emitted recognized user and
+assistant conversation events rather than metadata-only spans.
+
+![Layer 3 — external-agent synthetic conversation turns](workloads/foundry/images/l3-10f-external-agent-conversation-turns.png)
 
 The applied Application Insights **Agents (Preview)** view was opened in Edge
 inside the private data-gateway VM. It shows `external-agent` with zero errors
@@ -3318,9 +3336,10 @@ An operator should be able to follow one invocation across these boundaries:
 4. Child model telemetry reports latency and success.
 5. The agent span reports input/output token usage for the same operation.
 
-Do not capture prompts, responses, bearer tokens, connection strings, trace IDs,
-tenant IDs, subscription IDs, object IDs, or client IPs in screenshot evidence.
-Refresh each portal page and capture the final applied state only.
+Do not include real customer prompts, responses, bearer tokens, connection
+strings, trace IDs, tenant IDs, subscription IDs, object IDs, or client IPs in
+screenshot evidence. Use harmless deterministic test messages when proving the
+User view. Refresh each portal page and capture the final applied state only.
 
 ### 20. Deploy the Fabric IQ agent
 
@@ -3551,9 +3570,9 @@ was removed immediately after each push.
 ```bash
 cd /home/azureuser/lz
 docker build --pull \
-  --tag acr2690.azurecr.io/external-agent:1.0.3 \
+  --tag acr2690.azurecr.io/external-agent:1.0.4 \
   agents/external-agent
-docker push acr2690.azurecr.io/external-agent:1.0.3
+docker push acr2690.azurecr.io/external-agent:1.0.4
 
 cd workloads/agents
 terraform init -reconfigure -backend-config=../../_private/backend.hcl
@@ -3596,7 +3615,7 @@ runtime untouched.
 > `ManagedEnvironmentCapacityHeavyUsageError`; a later approved retry succeeded.
 > Internal environment `azr-sbx-lab-0001-cae-agents` is Succeeded with private IP
 > `10.3.2.160`. Container App `azr-sbx-lab-0001-ca-ext-agent` runs image
-> `external-agent:1.0.3` with one ready revision and user-assigned identity.
+> `external-agent:1.0.4` with one ready revision and user-assigned identity.
 > Startup fixes added the async `aiohttp` transport and `AZURE_CLIENT_ID`.
 > Direct private health returned `200`; private APIM rejected an unauthenticated
 > request with `401` and returned `200` plus `external agent ok` for an authorized
@@ -3609,11 +3628,13 @@ runtime untouched.
 > `gen_ai.agent.id=external-agent-v1` dependency span. Temporary project-scoped
 > `Foundry User` authorization used by the runner was removed after verification.
 
-> **Token telemetry:** image `1.0.3` copies Agent Framework
+> **Token and message telemetry:** image `1.0.4` copies Agent Framework
 > `usage_details.input_token_count` and `output_token_count` to
 > `gen_ai.usage.input_tokens` and `gen_ai.usage.output_tokens` on the registered
-> external-agent span. A post-deployment APIM invocation exported `79` input and
-> `140` output tokens. Earlier spans remain empty because telemetry is not
+> external-agent span and enables sensitive Agent Framework message events. A
+> post-deployment APIM invocation exported full system/user input under
+> `gen_ai.input.messages` and the assistant response under
+> `gen_ai.output.messages`. Earlier spans remain empty because telemetry is not
 > backfilled.
 
 For interactive tests from Windows PowerShell 5.1, set UTF-8 before printing
@@ -3630,6 +3651,11 @@ $OutputEncoding = [System.Text.UTF8Encoding]::new($false)
 > private data-gateway VM, Foundry **Build > Agents** shows `external-agent`
 > version 1 as Running with type external beside the prompt agent. The image does
 > not expose subscription, tenant, object, or trace IDs.
+
+> **Applied evidence — `l3-10f-external-agent-conversation-turns.png`**: image
+> `1.0.4` renders the harmless deterministic user prompt and assistant response
+> in Foundry **User view**. Identifier and metadata panes are excluded from the
+> screenshot.
 
 > **Applied evidence — `l3-10a-fabric-prompt-agent-active.png`**: prompt agent
 > version 6 is Active with `gpt-4.1-mini`, Responses protocol, and the Fabric
@@ -3676,7 +3702,8 @@ Capture final validation as separate evidence rather than one overloaded image:
   window prove Agent/tools/APIM egress traversed the hub firewall.
 - **`l3-12c-private-telemetry.png`** — a correlated custom-workload OpenTelemetry
   event proves ingestion over the AMPLS path; native Foundry traces use the
-  authenticated public ingestion exception. Do not expose message content.
+  authenticated public ingestion exception. If message capture is enabled, use
+  only a harmless deterministic prompt and exclude identifiers from evidence.
 - **`l3-12d-terraform-no-drift.png`** — Foundry, gateway, and firewall roots each
   return detailed exit code `0`, proving code/state convergence.
 

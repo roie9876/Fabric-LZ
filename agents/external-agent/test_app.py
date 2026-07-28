@@ -28,6 +28,42 @@ def test_required_setting_rejects_missing_value(monkeypatch):
         raise AssertionError("required_setting accepted a missing value")
 
 
+def test_environment_flag(monkeypatch):
+    module = load_app_module()
+
+    for value in ("1", "true", "TRUE", "yes", "on"):
+        monkeypatch.setenv("FLAG", value)
+        assert module.environment_flag("FLAG") is True
+
+
+def test_environment_flag_defaults_to_false(monkeypatch):
+    module = load_app_module()
+    monkeypatch.delenv("FLAG", raising=False)
+    assert module.environment_flag("FLAG") is False
+
+
+def test_configure_observability_enables_sensitive_message_capture(monkeypatch):
+    module = load_app_module()
+    calls = {}
+    monkeypatch.setenv("APPLICATIONINSIGHTS_CONNECTION_STRING", "test")
+    monkeypatch.setenv("ENABLE_SENSITIVE_DATA", "true")
+    monkeypatch.setattr(
+        module,
+        "configure_azure_monitor",
+        lambda **kwargs: calls.setdefault("monitor", kwargs),
+    )
+    monkeypatch.setattr(
+        module,
+        "enable_instrumentation",
+        lambda **kwargs: calls.setdefault("framework", kwargs),
+    )
+
+    module.configure_observability(None)
+
+    assert calls["monitor"]["enable_live_metrics"] is False
+    assert calls["framework"] == {"enable_sensitive_data": True}
+
+
 def test_external_agent_id_default(monkeypatch):
     module = load_app_module()
     monkeypatch.delenv("OTEL_AGENT_ID", raising=False)

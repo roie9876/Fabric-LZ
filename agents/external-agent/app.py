@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 
 from agent_framework import Agent
 from agent_framework.foundry import FoundryChatClient
+from agent_framework.observability import enable_instrumentation
 from azure.identity.aio import DefaultAzureCredential
 from azure.identity import DefaultAzureCredential as MonitorCredential
 from azure.monitor.opentelemetry import configure_azure_monitor
@@ -35,6 +36,13 @@ def configure_observability(credential: MonitorCredential) -> None:
         logger_name=LOGGER_NAME,
         enable_live_metrics=False,
     )
+    enable_instrumentation(
+        enable_sensitive_data=environment_flag("ENABLE_SENSITIVE_DATA"),
+    )
+
+
+def environment_flag(name: str) -> bool:
+    return os.getenv(name, "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def required_setting(name: str) -> str:

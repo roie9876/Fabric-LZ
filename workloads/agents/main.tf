@@ -180,6 +180,11 @@ resource "azurerm_container_app" "external_agent" {
         value = "external-agent-v1"
       }
 
+      env {
+        name  = "ENABLE_SENSITIVE_DATA"
+        value = tostring(var.external_agent_capture_message_content)
+      }
+
       liveness_probe {
         transport        = "HTTP"
         port             = 8080
