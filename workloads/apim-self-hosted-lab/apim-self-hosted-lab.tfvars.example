@@ -1,0 +1,9 @@
+subscription_id    = "00000000-0000-0000-0000-000000000000"
+tenant_id          = "00000000-0000-0000-0000-000000000000"
+api_management_name = "<globally-unique-apim-developer-name>"
+publisher_email     = "platform@example.com"
+
+use_msi            = true
+resource_group_name = "azr-sbx-lab-0001-rg-onprem-sim"
+location            = "israelcentral"
+gateway_name        = "onprem-runner"

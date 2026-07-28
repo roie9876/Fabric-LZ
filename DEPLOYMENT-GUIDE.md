@@ -3143,6 +3143,42 @@ route is approved.
 > controls in IaC before claiming them as applied. The authorized `200` and
 > unauthenticated `401` runtime tests prove enforcement beyond the policy view.
 
+#### 18.3 Optional self-hosted gateway lab
+
+The isolated `workloads/apim-self-hosted-lab` root proves a different APIM
+placement model without modifying the private Standard v2 gateway above. It
+deploys a paid Developer classic APIM control plane and registers
+`onprem-runner`; the pinned self-hosted gateway `2.9.2` container runs on the
+simulated on-premises Ubuntu VM and proxies to a private Docker backend.
+
+The applied test established all three independent relationships:
+
+1. **Foundry inventory:** Foundry Admin recognizes the Developer APIM instance
+  as an AI Gateway. APIM v2 is therefore not required merely for inventory
+  discovery in the current portal experience.
+2. **Foundry project association:** enabling a Foundry project is a separate
+  action. The observed disabled `projectljpk` row belongs to another private
+  Foundry account and was not changed; it is not evidence that
+  `azr-sbx-lab-0001-project-agent` is enabled on this gateway.
+3. **APIM runtime assignment:** `runner-echo` is assigned to the
+  `onprem-runner` gateway. This assignment, not Foundry inventory registration,
+  causes the off-Azure container to download and execute the API configuration.
+
+Acceptance testing returned HTTP `200` and
+`apim-self-hosted-gateway-ok` for both `/runner-echo` route forms from the runner
+and from a separate privately routed Windows VM. Azure reported gateway runtime
+`2.9.3169.0`, Terraform returned detailed exit code `0`, and neither the
+existing Standard v2 APIM instance nor Foundry public-network settings changed.
+
+![Layer 3 — APIM self-hosted gateway online](workloads/apim-self-hosted-lab/images/applied-self-hosted-gateway-online.png)
+
+Use this lab to validate Azure-managed APIM configuration with an AWS,
+on-premises, or other externally hosted gateway runtime. Do not treat Developer
+classic as a production tier, and do not infer that Foundry invokes the
+self-hosted listener directly. Foundry manages the AI Gateway association;
+clients still invoke an APIM API endpoint whose assigned gateway can be
+self-hosted.
+
 ### 19. Understand the two agent architectures
 
 > **Purpose: EDUCATION / DESIGN DECISION** — choose the correct identity,
